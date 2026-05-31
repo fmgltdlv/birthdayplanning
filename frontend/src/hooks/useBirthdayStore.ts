@@ -69,24 +69,25 @@ export function useBirthdayStore() {
 
   useEffect(() => {
     const creds = getStoredCredentials();
-    if (!creds) {
-      setSyncStatus('local');
-      return;
-    }
+    if (!creds) return;
 
-    setCredentials(creds);
-    setSyncStatus('loading');
+    let cancelled = false;
     fetchCloudPlan(creds)
       .then(({ plan: cloudPlan }) => {
+        if (cancelled) return;
         skipNextSave.current = true;
         setPlan(cloudPlan);
         setSyncStatus('synced');
         setSyncError(null);
       })
       .catch((e) => {
+        if (cancelled) return;
         setSyncError(e instanceof Error ? e.message : 'Could not load from cloud');
         setSyncStatus('error');
       });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const scheduleCloudSave = useCallback(
