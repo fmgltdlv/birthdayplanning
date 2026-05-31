@@ -5,6 +5,7 @@ import { NavTabs, type TabId } from './components/NavTabs';
 import { SectionCard } from './components/SectionCard';
 import { OverviewPanel } from './components/OverviewPanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { CloudSyncPanel } from './components/CloudSyncPanel';
 import { GiftsPanel } from './components/GiftsPanel';
 import { ChecklistPanel } from './components/ChecklistPanel';
 import { GuestsPanel } from './components/GuestsPanel';
@@ -14,7 +15,17 @@ import { LoveNotesPanel } from './components/LoveNotesPanel';
 import { BudgetPanel } from './components/BudgetPanel';
 
 function App() {
-  const { plan, updatePlan, resetPlan } = useBirthdayStore();
+  const {
+    plan,
+    updatePlan,
+    resetPlan,
+    credentials,
+    syncStatus,
+    syncError,
+    enableCloudSync,
+    linkExistingPlan,
+    disconnectCloud,
+  } = useBirthdayStore();
   const [tab, setTab] = useState<TabId>('overview');
 
   const setSettings = (settings: typeof plan.settings) =>
@@ -50,6 +61,15 @@ function App() {
             }
           >
             <SettingsPanel settings={plan.settings} onChange={setSettings} />
+            <CloudSyncPanel
+              plan={plan}
+              credentials={credentials}
+              syncStatus={syncStatus}
+              syncError={syncError}
+              onEnable={enableCloudSync}
+              onLink={linkExistingPlan}
+              onDisconnect={disconnectCloud}
+            />
           </SectionCard>
         )}
 
@@ -124,7 +144,12 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        <p>Made with love · All data stays private on your device</p>
+        <p>
+          Made with love ·
+          {credentials
+            ? ' Cloud sync enabled (Cloudflare D1)'
+            : ' Local backup on this device'}
+        </p>
       </footer>
     </div>
   );

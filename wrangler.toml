@@ -1,0 +1,15 @@
+name = "birthday-planner"
+compatibility_date = "2024-12-01"
+main = "worker/src/index.ts"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "birthdaydb"
+database_id = "1b65d897-40ca-494b-8572-f5a6052eec1c"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+[vars]
+# Set CORS_ORIGIN in Cloudflare dashboard for production if frontend is on another domain

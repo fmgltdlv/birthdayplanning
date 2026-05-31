@@ -1,43 +1,85 @@
 # Birthday Planner — For Her
 
-A beautiful, private web app to plan an unforgettable birthday celebration. Track gifts, guests, menu, surprises, love notes, and budget — everything saves automatically in your browser.
+A beautiful web app to plan an unforgettable birthday celebration, with optional **Cloudflare D1** cloud backup via a Workers API.
 
 ## Features
 
-- **Live countdown** to her birthday
-- **Gift tracker** with status (idea → ordered → wrapped → given)
-- **Party checklist** with progress bar
-- **Guest list** with RSVP and dietary notes
-- **Menu & cake** planning
-- **Surprise timeline** for secret moments
-- **Love notes** for cards, toasts, and letters
-- **Budget** tracker
-- **Dashboard** overview at a glance
+- Live countdown, gifts, checklist, guests, menu, surprises, love notes, budget
+- **Local mode** — data in browser `localStorage`
+- **Cloud sync** — store plan in D1 (Settings → Enable cloud sync)
 
-All data stays on your device (localStorage). No account or server required.
-
-## Quick start
+## Quick start (frontend only)
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the URL shown in the terminal (usually http://localhost:5173).
+## Full stack (Worker + D1 + SPA)
 
-## Build for production
+### 1. Apply D1 migrations
 
 ```bash
-npm run build
-npm run preview
+npm install
+npm run db:migrate:local   # local dev database
+npm run db:migrate:remote  # production D1 (after wrangler login)
 ```
 
-Deploy the `dist` folder to any static host (Netlify, Vercel, GitHub Pages, etc.).
+### 2. Run locally
 
-## First steps
+Terminal A — API + static assets (builds SPA into Worker):
 
-1. Open **Settings** and enter her name and birthday date.
-2. Customize the party theme and venue.
-3. Use the tabs to plan gifts, guests, food, and surprises.
+```bash
+npm run dev:all
+```
+
+Open http://localhost:8787
+
+Or run Vite + Worker separately:
+
+```bash
+npm run dev:worker   # http://127.0.0.1:8787
+npm run dev          # http://localhost:5173 (proxies /api to worker)
+```
+
+### 3. Deploy to Cloudflare
+
+```bash
+npm run deploy
+```
+
+This runs `vite build` and `wrangler deploy`. The Worker serves:
+
+- `/api/*` — REST API backed by D1
+- `/*` — React SPA from `dist/`
+
+### D1 configuration
+
+`wrangler.toml` is configured with your database:
+
+- **Binding:** `DB`
+- **Database:** `birthdaydb`
+- **ID:** `1b65d897-40ca-494b-8572-f5a6052eec1c`
+
+## API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Health check |
+| POST | `/api/plans` | Create plan (optional `{ plan }` body) |
+| GET | `/api/plans/:id?secret=` | Load plan |
+| PUT | `/api/plans/:id` | Save `{ secret, plan }` |
+| DELETE | `/api/plans/:id?secret=` | Delete plan |
+
+Each plan has a random **id** and **secret** (returned on create). The secret is required for read/write — treat it like a password.
+
+## Project layout
+
+```
+worker/src/     Cloudflare Worker API
+migrations/     D1 SQL migrations
+src/            React frontend
+wrangler.toml   Worker + D1 + static assets
+```
 
 Made with love.
