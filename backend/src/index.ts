@@ -1,137 +1,116 @@
-import { createDefaultPlan, type BirthdayPlan } from './defaultPlan';
 import {
-  createPlan,
-  deletePlan,
-  getPlan,
-  savePlan,
-} from './plans';
+  getEntry,
+  insertNote,
+  insertPhoto,
+  listEntries,
+  rowToEntry,
+} from './entries';
+import { putToR2, r2KeyFor, validateImage } from './uploads';
 
 export interface Env {
   DB: D1Database;
+  MEDIA: R2Bucket;
   ASSETS: Fetcher;
-  CORS_ORIGIN?: string;
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
 
-function corsHeaders(env: Env, request: Request): HeadersInit {
-  const origin = request.headers.get('Origin');
-  const allowed = env.CORS_ORIGIN ?? origin ?? '*';
-  return {
-    'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Max-Age': '86400',
-  };
-}
-
-function json(
-  data: unknown,
-  status = 200,
-  extra: HeadersInit = {},
-): Response {
+function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...JSON_HEADERS, ...extra },
+    headers: JSON_HEADERS,
   });
 }
 
-function error(message: string, status: number, cors: HeadersInit): Response {
-  return json({ error: message }, status, cors);
+function error(message: string, status: number): Response {
+  return json({ error: message }, status);
 }
 
-async function handleApi(
-  request: Request,
-  env: Env,
-): Promise<Response> {
+async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const cors = corsHeaders(env, request);
-
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: cors });
-  }
-
   const path = url.pathname.replace(/\/+$/, '') || '/';
 
   if (path === '/api/health' && request.method === 'GET') {
-    return json({ ok: true, service: 'birthday-planner-api' }, 200, cors);
+    return json({ ok: true, service: 'bootybear-time-capsule' });
   }
 
-  if (path === '/api/plans' && request.method === 'POST') {
-    let initial: BirthdayPlan | undefined;
+  if (path === '/api/entries' && request.method === 'GET') {
+    const limit = Math.min(200, parseInt(url.searchParams.get('limit') ?? '100', 10));
+    const entries = await listEntries(env.DB, limit);
+    return json({ entries });
+  }
+
+  if (path === '/api/entries/note' && request.method === 'POST') {
+    let body: { authorName?: string; text?: string };
     try {
-      const body = (await request.json()) as { plan?: BirthdayPlan };
-      initial = body?.plan;
+      body = (await request.json()) as { authorName?: string; text?: string };
     } catch {
-      /* empty body is fine */
+      return error('Invalid JSON', 400);
     }
-    const created = await createPlan(env.DB, initial);
-    return json(
-      {
-        id: created.id,
-        secret: created.secret,
-        plan: created.plan,
-        updatedAt: Math.floor(Date.now() / 1000),
-      },
-      201,
-      cors,
-    );
+
+    const text = (body.text ?? '').trim();
+    if (!text) return error('Note text is required', 400);
+
+    const authorName = (body.authorName ?? '').trim() || null;
+    const id = crypto.randomUUID();
+    const entry = await insertNote(env.DB, id, authorName, text);
+    return json({ entry }, 201);
   }
 
-  const planMatch = path.match(/^\/api\/plans\/([^/]+)$/);
-  if (!planMatch) {
-    return error('Not found', 404, cors);
-  }
-
-  const planId = decodeURIComponent(planMatch[1]);
-
-  if (request.method === 'GET') {
-    const secret = url.searchParams.get('secret') ?? '';
-    if (!secret) return error('Missing secret', 401, cors);
-
-    const result = await getPlan(env.DB, planId, secret);
-    if (!result) return error('Plan not found or invalid secret', 404, cors);
-
-    return json(
-      { id: planId, plan: result.plan, updatedAt: result.updatedAt },
-      200,
-      cors,
-    );
-  }
-
-  if (request.method === 'PUT') {
-    let body: { secret?: string; plan?: BirthdayPlan };
+  if (path === '/api/entries/photo' && request.method === 'POST') {
+    let form: FormData;
     try {
-      body = (await request.json()) as { secret?: string; plan?: BirthdayPlan };
+      form = await request.formData();
     } catch {
-      return error('Invalid JSON body', 400, cors);
+      return error('Expected multipart form data', 400);
     }
 
-    if (!body.secret || !body.plan) {
-      return error('Body must include secret and plan', 400, cors);
+    const file = form.get('file');
+    if (!(file instanceof File)) {
+      return error('Missing image file', 400);
     }
 
-    const saved = await savePlan(env.DB, planId, body.secret, body.plan);
-    if (!saved) return error('Plan not found or invalid secret', 404, cors);
+    const validationError = validateImage(file);
+    if (validationError) return error(validationError, 400);
 
-    return json(
-      { id: planId, ok: true, updatedAt: Math.floor(Date.now() / 1000) },
-      200,
-      cors,
+    const authorName = String(form.get('authorName') ?? '').trim() || null;
+    const caption = String(form.get('caption') ?? '').trim() || null;
+
+    const id = crypto.randomUUID();
+    const key = r2KeyFor(id, file.type);
+
+    await putToR2(env.MEDIA, key, file);
+    const entry = await insertPhoto(
+      env.DB,
+      id,
+      authorName,
+      caption,
+      key,
+      file.type,
     );
+
+    return json({ entry }, 201);
   }
 
-  if (request.method === 'DELETE') {
-    const secret = url.searchParams.get('secret') ?? '';
-    if (!secret) return error('Missing secret', 401, cors);
+  const mediaMatch = path.match(/^\/api\/media\/([^/]+)$/);
+  if (mediaMatch && request.method === 'GET') {
+    const id = decodeURIComponent(mediaMatch[1]);
+    const row = await getEntry(env.DB, id);
+    if (!row || row.type !== 'photo' || !row.r2_key) {
+      return error('Not found', 404);
+    }
 
-    const removed = await deletePlan(env.DB, planId, secret);
-    if (!removed) return error('Plan not found or invalid secret', 404, cors);
+    const object = await env.MEDIA.get(row.r2_key);
+    if (!object) return error('File missing from storage', 404);
 
-    return json({ id: planId, ok: true }, 200, cors);
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('Cache-Control', 'public, max-age=86400');
+
+    return new Response(object.body, { headers });
   }
 
-  return error('Method not allowed', 405, cors);
+  return error('Not found', 404);
 }
 
 export default {
@@ -143,8 +122,7 @@ export default {
         return await handleApi(request, env);
       } catch (e) {
         console.error(e);
-        const cors = corsHeaders(env, request);
-        return error('Internal server error', 500, cors);
+        return error('Internal server error', 500);
       }
     }
 

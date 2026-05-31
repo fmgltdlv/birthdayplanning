@@ -1,65 +1,55 @@
-# Birthday Planner — For Her
+# Booty Bear Time Capsule
 
-Monorepo with a **React frontend** and **Cloudflare Worker + D1 backend**.
+Open time capsule: anyone with the link can leave **notes** and **photos**. No login.
 
 ```
-frontend/     React + Vite SPA
-backend/      Cloudflare Worker API + D1 + static assets
+frontend/     React + Vite
+backend/      Cloudflare Worker + D1 + R2
 ```
 
-## Quick start
+## Cloudflare setup
+
+| Resource | Name / binding |
+|----------|----------------|
+| **D1** | `birthdaydb` → binding `DB` |
+| **R2** | `bootybearcapsule` → binding `MEDIA` |
+| **Worker** | Serves app + `/api/*` |
+
+### Migrations (run once on production D1)
+
+Apply `backend/migrations/0002_time_capsule.sql` (and `0001` if fresh):
+
+```bash
+npm run db:migrate:remote
+```
+
+Or paste `0002_time_capsule.sql` into the D1 SQL console in the dashboard.
+
+### Deploy
 
 ```bash
 npm install
+npm run deploy
 ```
 
-### Frontend only
+## Local dev
 
 ```bash
-npm run dev
-```
-
-Opens http://localhost:5173 (proxies `/api` to the worker when it is running).
-
-### Backend + frontend (full stack)
-
-```bash
+npm install
 npm run db:migrate:local
 npm run dev:all
 ```
 
-Opens http://localhost:8787 (Worker serves API + built SPA).
+Open http://localhost:8787
 
-Or run in two terminals:
+## API
 
-```bash
-npm run dev:backend   # http://127.0.0.1:8787
-npm run dev           # http://localhost:5173
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/entries` | List entries (newest first) |
+| POST | `/api/entries/note` | `{ text, authorName? }` |
+| POST | `/api/entries/photo` | `multipart`: `file`, `authorName?`, `caption?` |
+| GET | `/api/media/:id` | Photo bytes |
 
-## Deploy to Cloudflare
-
-```bash
-npm run db:migrate:remote
-npm run deploy
-```
-
-Builds `frontend/dist`, then deploys the Worker from `backend/` with D1 and static assets.
-
-## Scripts (from repo root)
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Vite dev server (frontend) |
-| `npm run dev:backend` | Wrangler dev (backend) |
-| `npm run dev:all` | Build frontend + Wrangler dev |
-| `npm run build` | Production build (frontend) |
-| `npm run deploy` | Build + deploy Worker |
-| `npm run db:migrate:local` | Apply D1 migrations locally |
-| `npm run db:migrate:remote` | Apply D1 migrations to production |
-
-## Cloud sync
-
-In the app: **Settings → Cloud backup (D1)**. See `backend/` for API routes and `frontend/src/api/` for the client.
-
-Made with love.
+Photos are stored in R2; metadata in D1.

@@ -1,158 +1,117 @@
-import { useState } from 'react';
-import { useBirthdayStore } from './hooks/useBirthdayStore';
-import { Countdown } from './components/Countdown';
-import { NavTabs, type TabId } from './components/NavTabs';
-import { SectionCard } from './components/SectionCard';
-import { OverviewPanel } from './components/OverviewPanel';
-import { SettingsPanel } from './components/SettingsPanel';
-import { CloudSyncPanel } from './components/CloudSyncPanel';
-import { GiftsPanel } from './components/GiftsPanel';
-import { ChecklistPanel } from './components/ChecklistPanel';
-import { GuestsPanel } from './components/GuestsPanel';
-import { MenuPanel } from './components/MenuPanel';
-import { SurprisesPanel } from './components/SurprisesPanel';
-import { LoveNotesPanel } from './components/LoveNotesPanel';
-import { BudgetPanel } from './components/BudgetPanel';
+import { useCallback, useEffect, useState } from 'react';
+import { fetchEntries } from './api/capsuleApi';
+import { EntryCard } from './components/EntryCard';
+import { UploadPanel } from './components/UploadPanel';
+import type { CapsuleEntry } from './types';
 
-function App() {
-  const {
-    plan,
-    updatePlan,
-    resetPlan,
-    credentials,
-    syncStatus,
-    syncError,
-    enableCloudSync,
-    linkExistingPlan,
-    disconnectCloud,
-  } = useBirthdayStore();
-  const [tab, setTab] = useState<TabId>('overview');
+const AUTHOR_KEY = 'capsule-author-name';
 
-  const setSettings = (settings: typeof plan.settings) =>
-    updatePlan((p) => ({ ...p, settings }));
+function loadAuthor(): string {
+  return localStorage.getItem(AUTHOR_KEY) ?? '';
+}
+
+export default function App() {
+  const [entries, setEntries] = useState<CapsuleEntry[]>([]);
+  const [authorName, setAuthorName] = useState(loadAuthor);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    try {
+      const list = await fetchEntries();
+      setEntries(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load entries');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await fetchEntries();
+        if (!cancelled) {
+          setEntries(list);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Could not load entries');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(AUTHOR_KEY, authorName);
+  }, [authorName]);
+
+  const onPosted = (entry: CapsuleEntry) => {
+    setEntries((prev) => [entry, ...prev]);
+  };
 
   return (
     <div className="app">
-      <div className="app-bg" aria-hidden />
-      <header className="app-header">
-        <Countdown
-          herName={plan.settings.herName}
-          birthdayDate={plan.settings.birthdayDate}
-        />
+      <header className="header">
+        <p className="eyebrow">Booty Bear</p>
+        <h1>Time Capsule</h1>
+        <p className="tagline">Notes and memories, sealed for the future</p>
       </header>
 
-      <NavTabs active={tab} onChange={setTab} />
+      <section className="author-bar">
+        <label>
+          <span>Your name (optional)</span>
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Who is leaving this?"
+          />
+        </label>
+      </section>
 
-      <main className="app-main">
-        {tab === 'overview' && (
-          <SectionCard title="Dashboard" subtitle="Your planning at a glance">
-            <OverviewPanel plan={plan} onNavigate={(t) => setTab(t as TabId)} />
-          </SectionCard>
+      <UploadPanel authorName={authorName} onPosted={onPosted} />
+
+      <section className="feed">
+        <div className="feed-header">
+          <h2>Inside the capsule</h2>
+          <button type="button" className="btn-refresh" onClick={() => void refresh()}>
+            Refresh
+          </button>
+        </div>
+
+        {loading && <p className="status">Opening the capsule…</p>}
+        {error && (
+          <p className="status error">
+            {error}
+            <br />
+            <small>
+              Run migration <code>0002_time_capsule.sql</code> on D1 and redeploy the Worker
+              with the R2 binding.
+            </small>
+          </p>
         )}
-
-        {tab === 'settings' && (
-          <SectionCard
-            title="Settings"
-            subtitle="Personalize her celebration"
-            actions={
-              <button type="button" className="btn btn-ghost" onClick={resetPlan}>
-                Reset all data
-              </button>
-            }
-          >
-            <SettingsPanel settings={plan.settings} onChange={setSettings} />
-            <CloudSyncPanel
-              plan={plan}
-              credentials={credentials}
-              syncStatus={syncStatus}
-              syncError={syncError}
-              onEnable={enableCloudSync}
-              onLink={linkExistingPlan}
-              onDisconnect={disconnectCloud}
-            />
-          </SectionCard>
+        {!loading && !error && entries.length === 0 && (
+          <p className="status empty">Nothing here yet — be the first to add a note or photo.</p>
         )}
+        <div className="entry-list">
+          {entries.map((entry) => (
+            <EntryCard key={entry.id} entry={entry} />
+          ))}
+        </div>
+      </section>
 
-        {tab === 'gifts' && (
-          <SectionCard title="Gift Ideas" subtitle="Track ideas from spark to wrap">
-            <GiftsPanel
-              gifts={plan.gifts}
-              onChange={(gifts) => updatePlan((p) => ({ ...p, gifts }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'checklist' && (
-          <SectionCard title="Party Checklist" subtitle="Nothing slips through the cracks">
-            <ChecklistPanel
-              items={plan.checklist}
-              onChange={(checklist) => updatePlan((p) => ({ ...p, checklist }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'guests' && (
-          <SectionCard title="Guest List" subtitle="RSVPs, dietary needs, and plus-ones">
-            <GuestsPanel
-              guests={plan.guests}
-              onChange={(guests) => updatePlan((p) => ({ ...p, guests }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'menu' && (
-          <SectionCard title="Menu & Cake" subtitle="Food and drinks she will adore">
-            <MenuPanel
-              menu={plan.menu}
-              onChange={(menu) => updatePlan((p) => ({ ...p, menu }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'surprises' && (
-          <SectionCard
-            title="Surprise Timeline"
-            subtitle="Secret moments throughout the day"
-          >
-            <SurprisesPanel
-              surprises={plan.surprises}
-              onChange={(surprises) => updatePlan((p) => ({ ...p, surprises }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'notes' && (
-          <SectionCard
-            title="Love Notes"
-            subtitle="Words for her card, toast, or letter"
-          >
-            <LoveNotesPanel
-              notes={plan.loveNotes}
-              onChange={(loveNotes) => updatePlan((p) => ({ ...p, loveNotes }))}
-            />
-          </SectionCard>
-        )}
-
-        {tab === 'budget' && (
-          <SectionCard title="Budget" subtitle="Keep the celebration on track">
-            <BudgetPanel
-              budget={plan.budget}
-              onChange={(budget) => updatePlan((p) => ({ ...p, budget }))}
-            />
-          </SectionCard>
-        )}
-      </main>
-
-      <footer className="app-footer">
-        <p>
-          Made with love ·
-          {credentials
-            ? ' Cloud sync enabled (Cloudflare D1)'
-            : ' Local backup on this device'}
-        </p>
+      <footer className="footer">
+        <p>Open capsule · Anyone with the link can contribute</p>
       </footer>
     </div>
   );
 }
-
-export default App;
