@@ -70,17 +70,44 @@ body {
   overflow: hidden;
 }
 
+@keyframes collage-drift {
+  0% {
+    transform: scale(1.14) translate(0%, 0%) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.2) translate(-1.8%, 1.2%) rotate(0.35deg);
+  }
+  50% {
+    transform: scale(1.17) translate(1.4%, -0.9%) rotate(-0.25deg);
+  }
+  75% {
+    transform: scale(1.22) translate(-0.6%, -1.4%) rotate(0.2deg);
+  }
+  100% {
+    transform: scale(1.14) translate(0%, 0%) rotate(0deg);
+  }
+}
+
 .sky-collage {
   position: absolute;
-  inset: 0;
+  inset: -8%;
   z-index: 0;
   background-image: url('/collage-bg.jpg');
   background-size: cover;
   background-position: center;
-  opacity: 0.22;
-  filter: saturate(0.85) blur(1px);
-  transform: scale(1.03);
+  opacity: 0.28;
+  filter: saturate(1.05) contrast(1.02);
+  animation: collage-drift 100s ease-in-out infinite;
+  will-change: transform;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-collage {
+    animation: none;
+    inset: 0;
+    transform: scale(1.08);
+  }
 }
 
 .sky-collage-fade {
