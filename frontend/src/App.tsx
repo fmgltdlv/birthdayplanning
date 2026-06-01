@@ -84,7 +84,7 @@ export default function App() {
           <p className="eyebrow">Booty Bear</p>
           <h1>Time Capsule</h1>
           <p className="tagline">
-            Drag to wander · scroll or pinch to zoom · tap a bubble
+            Newest at the center · older memories toward the edges
           </p>
         </header>
 

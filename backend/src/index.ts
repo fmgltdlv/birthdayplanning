@@ -44,7 +44,7 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
   }
 
   if (path === '/api/entries' && request.method === 'GET') {
-    const limit = Math.min(200, parseInt(url.searchParams.get('limit') ?? '100', 10));
+    const limit = Math.min(2000, parseInt(url.searchParams.get('limit') ?? '100', 10));
     const entries = await listEntries(env.DB, limit);
     return json({ entries });
   }

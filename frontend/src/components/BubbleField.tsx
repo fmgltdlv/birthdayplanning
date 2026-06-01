@@ -1,11 +1,17 @@
+import { useMemo } from 'react';
 import type { CapsuleEntry } from '../types';
 import { mediaUrl } from '../api/capsuleApi';
 import { notePreview, overviewDotSize, type BubbleStyle } from '../utils/bubbleLayout';
+import { visibleBubbleIndices } from '../utils/viewportBubbles';
 
 interface BubbleFieldProps {
   entries: CapsuleEntry[];
   layouts: BubbleStyle[];
   overview: boolean;
+  viewW: number;
+  viewH: number;
+  scale: number;
+  pan: { x: number; y: number };
   onSelect: (entry: CapsuleEntry) => void;
 }
 
@@ -13,13 +19,34 @@ export function BubbleField({
   entries,
   layouts,
   overview,
+  viewW,
+  viewH,
+  scale,
+  pan,
   onSelect,
 }: BubbleFieldProps) {
   const dot = overviewDotSize();
 
+  const indices = useMemo(() => {
+    if (viewW <= 0 || viewH <= 0) {
+      return entries.map((_, i) => i);
+    }
+    const margin = overview ? 80 : 160;
+    const visible = visibleBubbleIndices(
+      layouts,
+      viewW,
+      viewH,
+      scale,
+      pan,
+      margin,
+    );
+    return visible.length > 0 ? visible : entries.map((_, i) => i);
+  }, [entries, layouts, viewW, viewH, scale, pan, overview]);
+
   return (
     <div className="bubble-field" aria-label="Memory bubbles">
-      {entries.map((entry, index) => {
+      {indices.map((index) => {
+        const entry = entries[index]!;
         const style = layouts[index]!;
         const isPhoto = entry.type === 'photo' && entry.hasMedia;
         const size = overview ? dot : style.size;

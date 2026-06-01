@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fitAllScale, layoutBounds, type BubbleStyle } from '../utils/bubbleLayout';
+import {
+  computeScaleForVisibleCount,
+  countVisibleBubbles,
+  OVERVIEW_VISIBLE_COUNT,
+  TARGET_INITIAL_VISIBLE,
+} from '../utils/viewportBubbles';
 
 const MAX_SCALE = 2.5;
-const OVERVIEW_THRESHOLD = 0.55;
-
-export function isOverviewZoom(scale: number, minScale: number): boolean {
-  const range = 1 - minScale;
-  if (range <= 0.08) return scale <= minScale + 0.02;
-  const t = (scale - minScale) / range;
-  return t < OVERVIEW_THRESHOLD;
-}
 
 function clampPan(
   panX: number,
@@ -48,33 +46,19 @@ function clampPan(
   };
 }
 
-export function computeInitialTransform(
-  viewW: number,
-  viewH: number,
-  worldW: number,
-  worldH: number,
-  styles: BubbleStyle[],
-): { scale: number; pan: { x: number; y: number } } {
-  const bounds = layoutBounds(styles);
-  const fit = fitAllScale(viewW, viewH, bounds);
-  const scale = Math.min(1, fit * 1.15);
-  const scaledW = worldW * scale;
-  const scaledH = worldH * scale;
-  const x = (viewW - scaledW) / 2;
-  const y = (viewH - scaledH) / 2;
-  const pan = clampPan(x, y, scale, viewW, viewH, worldW, worldH);
-  return { scale, pan };
-}
-
 interface UsePanZoomOptions {
   worldWidth: number;
   worldHeight: number;
+  focusX: number;
+  focusY: number;
   styles: BubbleStyle[];
 }
 
 export function usePanZoom({
   worldWidth,
   worldHeight,
+  focusX,
+  focusY,
   styles,
 }: UsePanZoomOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -105,7 +89,12 @@ export function usePanZoom({
       ? fitAllScale(viewSize.w, viewSize.h, bounds)
       : 0.35;
 
-  const overview = isOverviewZoom(scale, minScale);
+  const visibleCount = useMemo(() => {
+    if (viewSize.w <= 0 || viewSize.h <= 0) return 0;
+    return countVisibleBubbles(styles, viewSize.w, viewSize.h, scale, pan);
+  }, [styles, viewSize, scale, pan]);
+
+  const overview = visibleCount >= OVERVIEW_VISIBLE_COUNT;
 
   const applyPan = useCallback(
     (x: number, y: number, s: number) => {
@@ -146,15 +135,19 @@ export function usePanZoom({
       const h = el.clientHeight;
       setViewSize({ w, h });
 
-      if (needsInitialRef.current && w > 0 && h > 0) {
+      if (needsInitialRef.current && w > 0 && h > 0 && styles.length > 0) {
         needsInitialRef.current = false;
-        const { scale: s, pan: p } = computeInitialTransform(
+        const fit = fitAllScale(w, h, layoutBounds(styles));
+        const { scale: s, pan: rawPan } = computeScaleForVisibleCount(
+          styles,
           w,
           h,
-          worldWidth,
-          worldHeight,
-          styles,
+          focusX,
+          focusY,
+          TARGET_INITIAL_VISIBLE,
+          fit,
         );
+        const p = clampPan(rawPan.x, rawPan.y, s, w, h, worldWidth, worldHeight);
         setScale(s);
         setPan(p);
       }
@@ -163,7 +156,7 @@ export function usePanZoom({
     const ro = new ResizeObserver(onResize);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [worldWidth, worldHeight, styles]);
+  }, [worldWidth, worldHeight, focusX, focusY, styles]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -262,6 +255,8 @@ export function usePanZoom({
     viewportRef,
     pan,
     scale,
+    viewSize,
+    visibleCount,
     minScale,
     overview,
     transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,

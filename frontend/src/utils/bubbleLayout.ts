@@ -12,11 +12,15 @@ export interface BubbleLayoutResult {
   styles: BubbleStyle[];
   worldWidth: number;
   worldHeight: number;
+  /** World point where the newest memory sits (viewport should start here). */
+  focusX: number;
+  focusY: number;
 }
 
-const CELL = 148;
 const PAD = 96;
+const RING_STEP = 58;
 const OVERVIEW_DOT = 10;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 function hashString(s: string): number {
   let h = 0;
@@ -34,46 +38,61 @@ function bubbleSize(entry: CapsuleEntry, maxPx: number): number {
 }
 
 /**
- * Grid layout on an expandable world canvas (pixel coordinates).
+ * Newest entries near the center; older ones spiral outward.
+ * Positions align with the original `entries` array order.
  */
 export function layoutBubbles(entries: CapsuleEntry[]): BubbleLayoutResult {
   const n = entries.length;
   if (n === 0) {
-    return { styles: [], worldWidth: 800, worldHeight: 600 };
+    return {
+      styles: [],
+      worldWidth: 800,
+      worldHeight: 600,
+      focusX: 400,
+      focusY: 300,
+    };
   }
 
-  const cols = Math.ceil(Math.sqrt(n * 1.2));
-  const rows = Math.ceil(n / cols);
-  const maxPx = Math.max(44, Math.min(88, Math.floor(300 / cols)));
+  const maxPx = Math.max(44, Math.min(88, Math.floor(220 / Math.cbrt(n))));
 
-  const worldWidth = PAD * 2 + cols * CELL;
-  const worldHeight = PAD * 2 + rows * CELL;
+  const ranked = entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => b.entry.createdAt - a.entry.createdAt);
 
-  const styles = entries.map((entry, index) => {
-    const col = index % cols;
-    const row = Math.floor(index / cols);
+  const maxRadius =
+    n <= 1 ? 0 : RING_STEP * Math.sqrt(n - 1) + RING_STEP * 0.5;
+  const worldHalf = maxRadius + PAD + maxPx;
+  const worldWidth = Math.ceil(worldHalf * 2);
+  const worldHeight = Math.ceil(worldHalf * 2);
+  const focusX = worldHalf;
+  const focusY = worldHalf;
+
+  const styles: BubbleStyle[] = new Array(n);
+
+  ranked.forEach(({ entry, index }, rank) => {
     const h = hashString(entry.id);
     const h2 = hashString(entry.id + 'j');
-
-    const jitterX = ((h % 17) - 8) * 6;
-    const jitterY = ((h2 % 15) - 7) * 6;
-
-    const left =
-      PAD + col * CELL + CELL * 0.5 - bubbleSize(entry, maxPx) / 2 + jitterX;
-    const top =
-      PAD + row * CELL + CELL * 0.5 - bubbleSize(entry, maxPx) / 2 + jitterY;
     const size = bubbleSize(entry, maxPx);
 
-    return {
-      left,
-      top,
+    const radius = rank === 0 ? 0 : RING_STEP * Math.sqrt(rank);
+    const angle =
+      rank * GOLDEN_ANGLE + ((h % 360) * Math.PI) / 180 / (rank + 1);
+    const jitterX = ((h % 17) - 8) * 5;
+    const jitterY = ((h2 % 15) - 7) * 5;
+
+    const cx = focusX + Math.cos(angle) * radius + jitterX;
+    const cy = focusY + Math.sin(angle) * radius + jitterY;
+
+    styles[index] = {
+      left: cx - size / 2,
+      top: cy - size / 2,
       size,
       delay: (h % 24) * 0.12,
       duration: 12 + (h2 % 14),
     };
   });
 
-  return { styles, worldWidth, worldHeight };
+  return { styles, worldWidth, worldHeight, focusX, focusY };
 }
 
 export function layoutBounds(styles: BubbleStyle[]): {

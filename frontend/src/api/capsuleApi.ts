@@ -12,7 +12,7 @@ export function mediaUrl(entryId: string, size: MediaSize = 'full'): string {
 }
 
 export async function fetchEntries(): Promise<CapsuleEntry[]> {
-  const res = await fetch(`${apiBase()}/api/entries?limit=200`);
+  const res = await fetch(`${apiBase()}/api/entries?limit=2000`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error ?? 'Could not load capsule');

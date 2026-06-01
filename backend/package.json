@@ -9,7 +9,8 @@
     "db:migrate:local": "wrangler d1 migrations apply birthdaydb --local",
     "db:migrate:remote": "wrangler d1 migrations apply birthdaydb --remote",
     "db:seed": "node scripts/seed-entries.mjs",
-    "db:seed:remote": "node scripts/seed-entries.mjs 100 --remote"
+    "db:seed:remote": "node scripts/seed-entries.mjs 100 --remote",
+    "db:seed:remote:1k": "node scripts/seed-entries.mjs 1000 --remote"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260531.1",
