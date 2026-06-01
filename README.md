@@ -1,36 +1,30 @@
 # Booty Bear Time Capsule
 
-Open time capsule: anyone with the link can leave **notes** and **photos**. No login.
+Open time capsule: notes and photos. No login.
 
 ```
 frontend/     React + Vite
 backend/      Cloudflare Worker + D1 + R2
 ```
 
-## Cloudflare setup
+## Cloudflare Workers Builds (GitHub)
 
-| Resource | Name / binding |
-|----------|----------------|
-| **D1** | `birthdaydb` → binding `DB` |
-| **R2** | `bootybearcapsule` → binding `MEDIA` |
-| **Worker** | Serves app + `/api/*` |
+| Setting | Value |
+|---------|--------|
+| **Root directory** | *(empty — repo root)* |
+| **Build command** | `npm install && npm run deploy` |
+| **Deploy command** | **Leave empty** |
 
-### Migrations (run once on production D1)
+The build command already runs `wrangler deploy`. A second deploy step like `npx wrangler deploy` will **fail** (monorepo / wrong directory).
 
-Apply `backend/migrations/0002_time_capsule.sql` (and `0001` if fresh):
+Worker name in `backend/wrangler.toml` must match your Cloudflare project: `birthdayplanning`.
 
-```bash
-npm run db:migrate:remote
-```
+**Live URL:** https://birthdayplanning.thefieldmappinggroup.workers.dev
 
-Or paste `0002_time_capsule.sql` into the D1 SQL console in the dashboard.
+### After deploy
 
-### Deploy
-
-```bash
-npm install
-npm run deploy
-```
+1. Run D1 migration `backend/migrations/0002_time_capsule.sql` on `birthdaydb` (if not done).
+2. Confirm bindings: `DB` → D1, `MEDIA` → `bootybearcapsule`.
 
 ## Local dev
 
@@ -40,16 +34,8 @@ npm run db:migrate:local
 npm run dev:all
 ```
 
-Open http://localhost:8787
+## Manual deploy
 
-## API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/entries` | List entries (newest first) |
-| POST | `/api/entries/note` | `{ text, authorName? }` |
-| POST | `/api/entries/photo` | `multipart`: `file`, `authorName?`, `caption?` |
-| GET | `/api/media/:id` | Photo bytes |
-
-Photos are stored in R2; metadata in D1.
+```bash
+npm run deploy
+```

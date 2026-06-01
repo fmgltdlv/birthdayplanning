@@ -1,4 +1,4 @@
-name = "birthday-planner"
+name = "birthdayplanning"
 compatibility_date = "2024-12-01"
 main = "src/index.ts"
 
