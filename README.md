@@ -19,7 +19,7 @@ Do **not** use plain `npx wrangler deploy` from the repo root — it fails in th
 
 Worker name in `backend/wrangler.toml` must match your Cloudflare project: `birthdayplanning`.
 
-**Live URL:** https://birthdayplanning.thefieldmappinggroup.workers.dev
+**Live URL (mostlikely):** https://birthdayplanning.thefieldmappinggroup.workers.dev
 
 ### After deploy
 
