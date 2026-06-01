@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchEntries } from './api/capsuleApi';
-import { BubbleField } from './components/BubbleField';
+import { PanZoomSky } from './components/PanZoomSky';
 import { BubbleModal } from './components/BubbleModal';
 import { ExplorePanel } from './components/ExplorePanel';
 import { UploadPanel } from './components/UploadPanel';
@@ -75,7 +75,7 @@ export default function App() {
     <div className="app">
       <div className="sky" aria-hidden>
         {showBubbles && (
-          <BubbleField entries={filtered} onSelect={setSelected} />
+          <PanZoomSky entries={filtered} onSelect={setSelected} />
         )}
       </div>
 
@@ -83,7 +83,9 @@ export default function App() {
         <header className="header">
           <p className="eyebrow">Booty Bear</p>
           <h1>Time Capsule</h1>
-          <p className="tagline">Memories floating all around · tap a bubble</p>
+          <p className="tagline">
+            Drag to wander · scroll or pinch to zoom · tap a bubble
+          </p>
         </header>
 
         {loading && (

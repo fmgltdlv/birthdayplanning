@@ -64,6 +64,44 @@ body {
   overflow: hidden;
 }
 
+.pan-zoom-viewport {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.pan-zoom-viewport:active {
+  cursor: grabbing;
+}
+
+.pan-zoom-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.overview-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(5.5rem, calc(env(safe-area-inset-bottom) + 4.5rem));
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 .sky::before,
 .sky::after {
   content: '';
@@ -103,8 +141,9 @@ body {
 }
 
 .bubble-field {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -136,6 +175,29 @@ body {
 
 .bubble:active {
   transform: scale(0.96);
+}
+
+.bubble-overview {
+  animation: none;
+  box-shadow:
+    0 0 8px var(--accent-glow),
+    0 0 0 1px rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+}
+
+.bubble-overview:hover {
+  transform: scale(1.2);
+  box-shadow:
+    0 0 12px var(--accent-glow),
+    0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+.bubble-overview.bubble-photo {
+  background: radial-gradient(circle at 35% 30%, #e8c878, #8a6020);
+}
+
+.bubble-overview.bubble-note {
+  background: radial-gradient(circle at 35% 30%, #9ec8e8, #3a5060);
 }
 
 .bubble-photo {
