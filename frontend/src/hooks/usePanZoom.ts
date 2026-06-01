@@ -48,6 +48,24 @@ function clampPan(
   };
 }
 
+export function computeInitialTransform(
+  viewW: number,
+  viewH: number,
+  worldW: number,
+  worldH: number,
+  styles: BubbleStyle[],
+): { scale: number; pan: { x: number; y: number } } {
+  const bounds = layoutBounds(styles);
+  const fit = fitAllScale(viewW, viewH, bounds);
+  const scale = Math.min(1, fit * 1.15);
+  const scaledW = worldW * scale;
+  const scaledH = worldH * scale;
+  const x = (viewW - scaledW) / 2;
+  const y = (viewH - scaledH) / 2;
+  const pan = clampPan(x, y, scale, viewW, viewH, worldW, worldH);
+  return { scale, pan };
+}
+
 interface UsePanZoomOptions {
   worldWidth: number;
   worldHeight: number;
@@ -60,6 +78,7 @@ export function usePanZoom({
   styles,
 }: UsePanZoomOptions) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const needsInitialRef = useRef(true);
   const [viewSize, setViewSize] = useState({ w: 0, h: 0 });
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -122,27 +141,29 @@ export function usePanZoom({
     const el = viewportRef.current;
     if (!el) return;
 
-    const measure = () => {
-      setViewSize({ w: el.clientWidth, h: el.clientHeight });
+    const onResize = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      setViewSize({ w, h });
+
+      if (needsInitialRef.current && w > 0 && h > 0) {
+        needsInitialRef.current = false;
+        const { scale: s, pan: p } = computeInitialTransform(
+          w,
+          h,
+          worldWidth,
+          worldHeight,
+          styles,
+        );
+        setScale(s);
+        setPan(p);
+      }
     };
-    measure();
-    const ro = new ResizeObserver(measure);
+
+    const ro = new ResizeObserver(onResize);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (viewSize.w <= 0 || viewSize.h <= 0) return;
-    const fit = fitAllScale(viewSize.w, viewSize.h, bounds);
-    const initialScale = Math.min(1, fit * 1.15);
-    const scaledW = worldWidth * initialScale;
-    const scaledH = worldHeight * initialScale;
-    const x = (viewSize.w - scaledW) / 2;
-    const y = (viewSize.h - scaledH) / 2;
-    setScale(initialScale);
-    applyPan(x, y, initialScale);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when entry layout changes
-  }, [worldWidth, worldHeight, styles.length]);
+  }, [worldWidth, worldHeight, styles]);
 
   useEffect(() => {
     const el = viewportRef.current;

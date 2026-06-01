@@ -16,6 +16,8 @@
     "preview": "npm run preview -w birthday-planner-frontend",
     "db:migrate:local": "npm run db:migrate:local -w birthday-planner-backend",
     "db:migrate:remote": "npm run db:migrate:remote -w birthday-planner-backend",
+    "db:seed": "npm run db:seed -w birthday-planner-backend",
+    "db:seed:remote": "npm run db:seed:remote -w birthday-planner-backend",
     "deploy": "npm run build -w birthday-planner-frontend && npm run deploy -w birthday-planner-backend",
     "deploy:cloudflare": "wrangler deploy --config backend/wrangler.toml"
   }

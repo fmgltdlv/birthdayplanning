@@ -9,12 +9,25 @@ interface PanZoomSkyProps {
   onSelect: (entry: CapsuleEntry) => void;
 }
 
-export function PanZoomSky({ entries, onSelect }: PanZoomSkyProps) {
-  const layout = useMemo(() => layoutBubbles(entries), [entries]);
+interface PanZoomControllerProps {
+  entries: CapsuleEntry[];
+  worldWidth: number;
+  worldHeight: number;
+  layouts: ReturnType<typeof layoutBubbles>['styles'];
+  onSelect: (entry: CapsuleEntry) => void;
+}
+
+function PanZoomController({
+  entries,
+  worldWidth,
+  worldHeight,
+  layouts,
+  onSelect,
+}: PanZoomControllerProps) {
   const { viewportRef, overview, transform, handlers } = usePanZoom({
-    worldWidth: layout.worldWidth,
-    worldHeight: layout.worldHeight,
-    styles: layout.styles,
+    worldWidth,
+    worldHeight,
+    styles: layouts,
   });
 
   return (
@@ -27,15 +40,15 @@ export function PanZoomSky({ entries, onSelect }: PanZoomSkyProps) {
       <div
         className="pan-zoom-world"
         style={{
-          width: layout.worldWidth,
-          height: layout.worldHeight,
+          width: worldWidth,
+          height: worldHeight,
           transform,
           transformOrigin: '0 0',
         }}
       >
         <BubbleField
           entries={entries}
-          layouts={layout.styles}
+          layouts={layouts}
           overview={overview}
           onSelect={onSelect}
         />
@@ -46,5 +59,21 @@ export function PanZoomSky({ entries, onSelect }: PanZoomSkyProps) {
         </p>
       )}
     </div>
+  );
+}
+
+export function PanZoomSky({ entries, onSelect }: PanZoomSkyProps) {
+  const layout = useMemo(() => layoutBubbles(entries), [entries]);
+  const layoutKey = `${layout.worldWidth}-${layout.worldHeight}-${layout.styles.length}`;
+
+  return (
+    <PanZoomController
+      key={layoutKey}
+      entries={entries}
+      worldWidth={layout.worldWidth}
+      worldHeight={layout.worldHeight}
+      layouts={layout.styles}
+      onSelect={onSelect}
+    />
   );
 }

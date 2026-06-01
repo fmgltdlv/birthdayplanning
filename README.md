@@ -55,3 +55,14 @@ npm run dev:all
 ```
 
 Open http://localhost:8787
+
+### Test data (optional)
+
+Insert ~100 random notes and photo placeholders into **local** D1 (no real image files):
+
+```bash
+npm run db:seed
+```
+
+Custom count: `node backend/scripts/seed-entries.mjs 150`  
+Remote (production DB): `npm run db:seed:remote` — use only if you mean to pollute live data.
