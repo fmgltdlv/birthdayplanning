@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchEntries } from './api/capsuleApi';
-import { EntryCard } from './components/EntryCard';
+import { BubbleField } from './components/BubbleField';
+import { BubbleModal } from './components/BubbleModal';
+import { EntryList } from './components/EntryList';
+import { FilterBar } from './components/FilterBar';
 import { UploadPanel } from './components/UploadPanel';
 import type { CapsuleEntry } from './types';
+import {
+  filterAndSortEntries,
+  type FilterState,
+} from './utils/filterEntries';
 
 const AUTHOR_KEY = 'capsule-author-name';
 
@@ -15,6 +22,13 @@ export default function App() {
   const [authorName, setAuthorName] = useState(loadAuthor);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<CapsuleEntry | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [filter, setFilter] = useState<FilterState>({
+    query: '',
+    type: 'all',
+    sort: 'newest',
+  });
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -54,8 +68,16 @@ export default function App() {
     localStorage.setItem(AUTHOR_KEY, authorName);
   }, [authorName]);
 
+  const filtered = useMemo(
+    () => filterAndSortEntries(entries, filter),
+    [entries, filter],
+  );
+
   const onPosted = (entry: CapsuleEntry) => {
-    setEntries((prev) => [entry, ...prev]);
+    setEntries((prev) => {
+      if (prev.some((e) => e.id === entry.id)) return prev;
+      return [entry, ...prev];
+    });
   };
 
   return (
@@ -63,7 +85,7 @@ export default function App() {
       <header className="header">
         <p className="eyebrow">Booty Bear</p>
         <h1>Time Capsule</h1>
-        <p className="tagline">Notes and memories, sealed for the future</p>
+        <p className="tagline">Floating memories · tap a bubble to open</p>
       </header>
 
       <section className="author-bar">
@@ -76,41 +98,53 @@ export default function App() {
             placeholder="Who is leaving this?"
           />
         </label>
+        <button type="button" className="btn-refresh" onClick={() => void refresh()}>
+          Refresh
+        </button>
       </section>
 
-      <UploadPanel authorName={authorName} onPosted={onPosted} />
+      <FilterBar
+        filter={filter}
+        onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
+        resultCount={filtered.length}
+        totalCount={entries.length}
+      />
 
-      <section className="feed">
-        <div className="feed-header">
-          <h2>Inside the capsule</h2>
-          <button type="button" className="btn-refresh" onClick={() => void refresh()}>
-            Refresh
-          </button>
-        </div>
-
+      <main className="capsule-main">
         {loading && <p className="status">Opening the capsule…</p>}
-        {error && (
-          <p className="status error">
-            {error}
-            <br />
-            <small>
-              Run migration <code>0002_time_capsule.sql</code> on D1 and redeploy the Worker
-              with the R2 binding.
-            </small>
+        {error && <p className="status error">{error}</p>}
+        {!loading && !error && entries.length === 0 && (
+          <p className="status empty">
+            The capsule is empty — tap + to add the first note or photo.
           </p>
         )}
-        {!loading && !error && entries.length === 0 && (
-          <p className="status empty">Nothing here yet — be the first to add a note or photo.</p>
+        {!loading && !error && entries.length > 0 && (
+          <>
+            <BubbleField entries={filtered} onSelect={setSelected} />
+            <EntryList entries={filtered} onSelect={setSelected} />
+          </>
         )}
-        <div className="entry-list">
-          {entries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} />
-          ))}
-        </div>
-      </section>
+      </main>
+
+      <UploadPanel
+        authorName={authorName}
+        onPosted={onPosted}
+        collapsed={!uploadOpen}
+        onToggle={() => setUploadOpen((o) => !o)}
+      />
+
+      {uploadOpen && (
+        <div
+          className="upload-scrim"
+          onClick={() => setUploadOpen(false)}
+          role="presentation"
+        />
+      )}
+
+      <BubbleModal entry={selected} onClose={() => setSelected(null)} />
 
       <footer className="footer">
-        <p>Open capsule · Anyone with the link can contribute</p>
+        <p>Open capsule · Photos compressed on your device before upload</p>
       </footer>
     </div>
   );

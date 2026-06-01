@@ -1,4 +1,4 @@
-const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
@@ -19,7 +19,7 @@ export function validateImage(file: File): string | null {
     return 'Please upload a JPEG, PNG, WebP, or GIF image.';
   }
   if (file.size > MAX_BYTES) {
-    return 'Image must be 15 MB or smaller.';
+    return 'Image must be 5 MB or smaller.';
   }
   return null;
 }
