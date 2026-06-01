@@ -94,6 +94,55 @@ export async function compressImageForUpload(file: File): Promise<File> {
   throw new Error('Could not compress image below 5 MB. Try a smaller photo.');
 }
 
+
+const THUMB_MAX_DIM = 360;
+const THUMB_TARGET_BYTES = 400 * 1024;
+
+/** Small JPEG for bubble thumbnails (~360px). */
+export async function createThumbnailFromFile(source: File): Promise<File> {
+  const img = await loadImage(source);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not process image');
+
+  const { width, height } = scaleDimensions(
+    img.naturalWidth,
+    img.naturalHeight,
+    THUMB_MAX_DIM,
+  );
+  canvas.width = width;
+  canvas.height = height;
+  ctx.drawImage(img, 0, 0, width, height);
+
+  let quality = 0.82;
+  for (let i = 0; i < 8; i++) {
+    const blob = await canvasToBlob(canvas, quality);
+    if (blob.size <= THUMB_TARGET_BYTES) {
+      const base = source.name.replace(/\.[^.]+$/, '') || 'photo';
+      return new File([blob], `${base}-thumb.jpg`, {
+        type: OUTPUT_TYPE,
+        lastModified: Date.now(),
+      });
+    }
+    quality -= 0.1;
+  }
+
+  const blob = await canvasToBlob(canvas, 0.6);
+  const base = source.name.replace(/\.[^.]+$/, '') || 'photo';
+  return new File([blob], `${base}-thumb.jpg`, {
+    type: OUTPUT_TYPE,
+    lastModified: Date.now(),
+  });
+}
+
+export async function preparePhotoUpload(
+  raw: File,
+): Promise<{ full: File; thumb: File }> {
+  const full = await compressImageForUpload(raw);
+  const thumb = await createThumbnailFromFile(full);
+  return { full, thumb };
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

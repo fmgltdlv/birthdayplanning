@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchEntries } from './api/capsuleApi';
 import { BubbleField } from './components/BubbleField';
 import { BubbleModal } from './components/BubbleModal';
-import { EntryList } from './components/EntryList';
-import { FilterBar } from './components/FilterBar';
+import { ExplorePanel } from './components/ExplorePanel';
 import { UploadPanel } from './components/UploadPanel';
 import type { CapsuleEntry } from './types';
 import {
@@ -17,7 +16,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<CapsuleEntry | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [listOpen, setListOpen] = useState(false);
+  const [exploreOpen, setExploreOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>({
     query: '',
     type: 'all',
@@ -87,14 +86,6 @@ export default function App() {
           <p className="tagline">Memories floating all around · tap a bubble</p>
         </header>
 
-        <FilterBar
-          filter={filter}
-          onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
-          resultCount={filtered.length}
-          totalCount={entries.length}
-          onRefresh={() => void refresh()}
-        />
-
         {loading && (
           <p className="status-banner">Opening the capsule…</p>
         )}
@@ -106,38 +97,57 @@ export default function App() {
         )}
         {!loading && !error && entries.length > 0 && filtered.length === 0 && (
           <p className="status-banner empty">
-            No bubbles match — try another search or filter.
+            No bubbles match — open <strong>search</strong> to adjust filters.
           </p>
-        )}
-
-        {filtered.length > 0 && (
-          <button
-            type="button"
-            className="btn-browse-toggle"
-            onClick={() => setListOpen((o) => !o)}
-          >
-            {listOpen ? 'Hide list' : 'Browse list'}
-          </button>
-        )}
-
-        {listOpen && filtered.length > 0 && (
-          <EntryList entries={filtered} onSelect={setSelected} />
         )}
       </div>
 
+      <div className="fab-dock">
+        <button
+          type="button"
+          className="fab fab-explore"
+          onClick={() => setExploreOpen(true)}
+          aria-label="Search and browse"
+        >
+          ⌕
+        </button>
+        <button
+          type="button"
+          className="fab fab-add"
+          onClick={() => setUploadOpen(true)}
+          aria-label="Add to capsule"
+        >
+          +
+        </button>
+      </div>
+
+      {exploreOpen && (
+        <>
+          <div
+            className="upload-scrim"
+            onClick={() => setExploreOpen(false)}
+            role="presentation"
+          />
+          <ExplorePanel
+            filter={filter}
+            onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
+            entries={entries}
+            filtered={filtered}
+            onSelect={(e) => {
+              setSelected(e);
+              setExploreOpen(false);
+            }}
+            onRefresh={() => void refresh()}
+            onClose={() => setExploreOpen(false)}
+          />
+        </>
+      )}
+
       <UploadPanel
         onPosted={onPosted}
-        collapsed={!uploadOpen}
-        onToggle={() => setUploadOpen((o) => !o)}
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
       />
-
-      {uploadOpen && (
-        <div
-          className="upload-scrim"
-          onClick={() => setUploadOpen(false)}
-          role="presentation"
-        />
-      )}
 
       <BubbleModal entry={selected} onClose={() => setSelected(null)} />
     </div>

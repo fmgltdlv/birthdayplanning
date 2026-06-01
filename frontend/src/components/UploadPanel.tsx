@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { postNote, postPhoto } from '../api/capsuleApi';
 import type { CapsuleEntry } from '../types';
-import { compressImageForUpload, formatBytes } from '../utils/compressImage';
+import { formatBytes, preparePhotoUpload } from '../utils/compressImage';
 
 const MAX_PHOTOS = 10;
 const AUTHOR_KEY = 'capsule-author-name';
@@ -12,23 +12,20 @@ function loadAuthor(): string {
 
 interface UploadPanelProps {
   onPosted: (entry: CapsuleEntry) => void;
-  collapsed?: boolean;
-  onToggle?: () => void;
+  open: boolean;
+  onClose: () => void;
 }
 
 interface PendingPhoto {
   id: string;
-  file: File;
+  full: File;
+  thumb: File;
   preview: string;
-  originalSize: number;
-  compressedSize: number;
+  fullSize: number;
+  thumbSize: number;
 }
 
-export function UploadPanel({
-  onPosted,
-  collapsed = false,
-  onToggle,
-}: UploadPanelProps) {
+export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
   const [authorName, setAuthorName] = useState(loadAuthor);
   const [mode, setMode] = useState<'note' | 'photo'>('note');
   const [text, setText] = useState('');
@@ -37,8 +34,7 @@ export function UploadPanel({
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingPhoto[]>([]);
-  const galleryRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem(AUTHOR_KEY, authorName);
@@ -65,18 +61,19 @@ export function UploadPanel({
     }
 
     setBusy(true);
-    setProgress('Compressing on your device…');
+    setProgress('Preparing photos on your device…');
 
     try {
       const next: PendingPhoto[] = [];
       for (const raw of picked) {
-        const compressed = await compressImageForUpload(raw);
+        const { full, thumb } = await preparePhotoUpload(raw);
         next.push({
           id: crypto.randomUUID(),
-          file: compressed,
-          preview: URL.createObjectURL(compressed),
-          originalSize: raw.size,
-          compressedSize: compressed.size,
+          full,
+          thumb,
+          preview: URL.createObjectURL(thumb),
+          fullSize: full.size,
+          thumbSize: thumb.size,
         });
       }
       setPending((prev) => [...prev, ...next].slice(0, MAX_PHOTOS));
@@ -85,8 +82,7 @@ export function UploadPanel({
     } finally {
       setBusy(false);
       setProgress('');
-      if (galleryRef.current) galleryRef.current.value = '';
-      if (cameraRef.current) cameraRef.current.value = '';
+      if (photoRef.current) photoRef.current.value = '';
     }
   };
 
@@ -105,6 +101,7 @@ export function UploadPanel({
       const entry = await postNote(text, authorName);
       setText('');
       onPosted(entry);
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
@@ -125,7 +122,8 @@ export function UploadPanel({
         setProgress(`Uploading ${i + 1} of ${pending.length}…`);
         const item = pending[i];
         const entry = await postPhoto(
-          item.file,
+          item.full,
+          item.thumb,
           authorName,
           i === 0 ? caption : '',
         );
@@ -133,6 +131,7 @@ export function UploadPanel({
       }
       setCaption('');
       clearPending();
+      onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -141,142 +140,124 @@ export function UploadPanel({
     }
   };
 
-  if (collapsed) {
-    return (
-      <button type="button" className="fab-add" onClick={onToggle} aria-label="Add to capsule">
-        +
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
-    <section className="upload-panel">
-      <div className="upload-panel-head">
-        <h2>Add to the capsule</h2>
-        {onToggle && (
-          <button type="button" className="btn-close-panel" onClick={onToggle}>
+    <>
+      <div className="upload-scrim" onClick={onClose} role="presentation" />
+      <section className="upload-panel">
+        <div className="upload-panel-head">
+          <h2>Add to the capsule</h2>
+          <button type="button" className="btn-close-panel" onClick={onClose}>
             Close
           </button>
-        )}
-      </div>
+        </div>
 
-      <label className="author-field">
-        <span>Your name (optional)</span>
-        <input
-          type="text"
-          value={authorName}
-          onChange={(e) => setAuthorName(e.target.value)}
-          placeholder="Who is leaving this?"
-          autoComplete="name"
-        />
-      </label>
-
-      <div className="mode-tabs">
-        <button
-          type="button"
-          className={mode === 'note' ? 'mode-tab active' : 'mode-tab'}
-          onClick={() => setMode('note')}
-        >
-          Note
-        </button>
-        <button
-          type="button"
-          className={mode === 'photo' ? 'mode-tab active' : 'mode-tab'}
-          onClick={() => setMode('photo')}
-        >
-          Photos
-        </button>
-      </div>
-
-      {mode === 'note' ? (
-        <>
-          <textarea
-            className="upload-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Write something for the capsule…"
-            rows={4}
+        <label className="author-field">
+          <span>Your name (optional)</span>
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            placeholder="Who is leaving this?"
+            autoComplete="name"
           />
+        </label>
+
+        <div className="mode-tabs">
           <button
             type="button"
-            className="btn-submit"
-            disabled={busy || !text.trim()}
-            onClick={() => void submitNote()}
+            className={mode === 'note' ? 'mode-tab active' : 'mode-tab'}
+            onClick={() => setMode('note')}
           >
-            {busy ? 'Saving…' : 'Seal the note'}
+            Note
           </button>
-        </>
-      ) : (
-        <>
-          <p className="upload-hint">
-            Up to {MAX_PHOTOS} photos · compressed on your phone to ≤5 MB each
-          </p>
-          <div className="photo-actions">
-            <label className="photo-action-btn">
+          <button
+            type="button"
+            className={mode === 'photo' ? 'mode-tab active' : 'mode-tab'}
+            onClick={() => setMode('photo')}
+          >
+            Photos
+          </button>
+        </div>
+
+        {mode === 'note' ? (
+          <>
+            <textarea
+              className="upload-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Write something for the capsule…"
+              rows={4}
+            />
+            <button
+              type="button"
+              className="btn-submit"
+              disabled={busy || !text.trim()}
+              onClick={() => void submitNote()}
+            >
+              {busy ? 'Saving…' : 'Seal the note'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="upload-hint">
+              Up to {MAX_PHOTOS} photos · full ≤5 MB + thumbnail on your device
+            </p>
+            <label className="photo-pick-btn">
               <input
-                ref={galleryRef}
+                ref={photoRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/*"
                 multiple
                 hidden
                 onChange={(e) => void addFiles(e.target.files)}
               />
-              Gallery ({pending.length}/{MAX_PHOTOS})
+              Choose photos ({pending.length}/{MAX_PHOTOS})
             </label>
-            <label className="photo-action-btn camera">
-              <input
-                ref={cameraRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                capture="environment"
-                hidden
-                onChange={(e) => void addFiles(e.target.files)}
-              />
-              Camera
-            </label>
-          </div>
 
-          {pending.length > 0 && (
-            <ul className="pending-grid">
-              {pending.map((p) => (
-                <li key={p.id} className="pending-thumb">
-                  <img src={p.preview} alt="" />
-                  <span className="pending-size">
-                    {formatBytes(p.originalSize)} → {formatBytes(p.compressedSize)}
-                  </span>
-                  <button
-                    type="button"
-                    className="pending-remove"
-                    onClick={() => removePending(p.id)}
-                    aria-label="Remove"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+            {pending.length > 0 && (
+              <ul className="pending-grid">
+                {pending.map((p) => (
+                  <li key={p.id} className="pending-thumb">
+                    <img src={p.preview} alt="" />
+                    <span className="pending-size">
+                      {formatBytes(p.fullSize)} · thumb {formatBytes(p.thumbSize)}
+                    </span>
+                    <button
+                      type="button"
+                      className="pending-remove"
+                      onClick={() => removePending(p.id)}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          <input
-            type="text"
-            className="caption-input"
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Caption for batch (optional)"
-          />
+            <input
+              type="text"
+              className="caption-input"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Caption for batch (optional)"
+            />
 
-          <button
-            type="button"
-            className="btn-submit"
-            disabled={busy || pending.length === 0}
-            onClick={() => void submitPhotos()}
-          >
-            {busy ? progress || 'Uploading…' : `Add ${pending.length || ''} photo${pending.length === 1 ? '' : 's'}`}
-          </button>
-        </>
-      )}
+            <button
+              type="button"
+              className="btn-submit"
+              disabled={busy || pending.length === 0}
+              onClick={() => void submitPhotos()}
+            >
+              {busy ? progress || 'Uploading…' : `Add ${pending.length || ''} photo${pending.length === 1 ? '' : 's'}`}
+            </button>
+          </>
+        )}
 
-      {error && <p className="form-error">{error}</p>}
-    </section>
+        {error && <p className="form-error">{error}</p>}
+      </section>
+    </>
   );
 }

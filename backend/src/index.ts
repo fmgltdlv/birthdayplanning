@@ -3,9 +3,14 @@ import {
   insertNote,
   insertPhoto,
   listEntries,
-  rowToEntry,
 } from './entries';
-import { putToR2, r2KeyFor, validateImage } from './uploads';
+import {
+  putToR2,
+  r2KeyFor,
+  r2KeyForThumb,
+  validateImage,
+  MAX_THUMB_BYTES,
+} from './uploads';
 
 export interface Env {
   DB: D1Database;
@@ -73,6 +78,13 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const validationError = validateImage(file);
     if (validationError) return error(validationError, 400);
 
+    const thumbFile = form.get('thumb');
+    let thumbKey: string | null = null;
+    if (thumbFile instanceof File && thumbFile.size > 0) {
+      const thumbErr = validateImage(thumbFile, MAX_THUMB_BYTES);
+      if (thumbErr) return error(thumbErr, 400);
+    }
+
     const authorName = String(form.get('authorName') ?? '').trim() || null;
     const caption = String(form.get('caption') ?? '').trim() || null;
 
@@ -80,12 +92,19 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const key = r2KeyFor(id, file.type);
 
     await putToR2(env.MEDIA, key, file);
+
+    if (thumbFile instanceof File && thumbFile.size > 0) {
+      thumbKey = r2KeyForThumb(id);
+      await putToR2(env.MEDIA, thumbKey, thumbFile);
+    }
+
     const entry = await insertPhoto(
       env.DB,
       id,
       authorName,
       caption,
       key,
+      thumbKey,
       file.type,
     );
 
@@ -100,7 +119,13 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
       return error('Not found', 404);
     }
 
-    const object = await env.MEDIA.get(row.r2_key);
+    const wantThumb = url.searchParams.get('size') === 'thumb';
+    let objectKey = row.r2_key;
+    if (wantThumb && row.r2_key_thumb) {
+      objectKey = row.r2_key_thumb;
+    }
+
+    const object = await env.MEDIA.get(objectKey);
     if (!object) return error('File missing from storage', 404);
 
     const headers = new Headers();

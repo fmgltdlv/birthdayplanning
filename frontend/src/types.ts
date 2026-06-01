@@ -6,4 +6,5 @@ export interface CapsuleEntry {
   mimeType: string | null;
   createdAt: number;
   hasMedia: boolean;
+  hasThumb: boolean;
 }

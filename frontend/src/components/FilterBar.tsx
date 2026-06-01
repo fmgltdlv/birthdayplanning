@@ -6,6 +6,7 @@ interface FilterBarProps {
   resultCount: number;
   totalCount: number;
   onRefresh: () => void;
+  embedded?: boolean;
 }
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
@@ -26,9 +27,13 @@ export function FilterBar({
   resultCount,
   totalCount,
   onRefresh,
+  embedded = false,
 }: FilterBarProps) {
   return (
-    <section className="filter-bar" aria-label="Search and filter">
+    <section
+      className={embedded ? 'filter-bar filter-bar-embedded' : 'filter-bar'}
+      aria-label="Search and filter"
+    >
       <div className="filter-top">
         <input
           type="search"

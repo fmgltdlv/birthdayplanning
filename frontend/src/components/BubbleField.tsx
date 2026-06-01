@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import type { CapsuleEntry } from '../types';
 import { mediaUrl } from '../api/capsuleApi';
-import { bubbleStyleFor, notePreview } from '../utils/bubbleLayout';
+import { layoutBubbles, notePreview } from '../utils/bubbleLayout';
 
 interface BubbleFieldProps {
   entries: CapsuleEntry[];
@@ -8,10 +9,12 @@ interface BubbleFieldProps {
 }
 
 export function BubbleField({ entries, onSelect }: BubbleFieldProps) {
+  const layouts = useMemo(() => layoutBubbles(entries), [entries]);
+
   return (
     <div className="bubble-field" aria-label="Memory bubbles">
       {entries.map((entry, index) => {
-        const style = bubbleStyleFor(entry, index);
+        const style = layouts[index];
         const isPhoto = entry.type === 'photo' && entry.hasMedia;
 
         return (
@@ -32,7 +35,7 @@ export function BubbleField({ entries, onSelect }: BubbleFieldProps) {
           >
             {isPhoto && (
               <img
-                src={mediaUrl(entry.id)}
+                src={mediaUrl(entry.id, entry.hasThumb ? 'thumb' : 'full')}
                 alt=""
                 className="bubble-img"
                 loading="lazy"

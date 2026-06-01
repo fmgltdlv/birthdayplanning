@@ -1,11 +1,14 @@
 import type { CapsuleEntry } from '../types';
 
+export type MediaSize = 'full' | 'thumb';
+
 function apiBase(): string {
   return import.meta.env.VITE_API_BASE ?? '';
 }
 
-export function mediaUrl(entryId: string): string {
-  return `${apiBase()}/api/media/${encodeURIComponent(entryId)}`;
+export function mediaUrl(entryId: string, size: MediaSize = 'full'): string {
+  const base = `${apiBase()}/api/media/${encodeURIComponent(entryId)}`;
+  return size === 'thumb' ? `${base}?size=thumb` : base;
 }
 
 export async function fetchEntries(): Promise<CapsuleEntry[]> {
@@ -39,12 +42,14 @@ export async function postNote(
 }
 
 export async function postPhoto(
-  file: File,
+  full: File,
+  thumb: File,
   authorName: string,
   caption: string,
 ): Promise<CapsuleEntry> {
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', full);
+  form.append('thumb', thumb);
   if (authorName.trim()) form.append('authorName', authorName.trim());
   if (caption.trim()) form.append('caption', caption.trim());
 

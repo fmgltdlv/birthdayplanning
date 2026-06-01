@@ -56,7 +56,7 @@ export function BubbleModal({ entry, onClose }: BubbleModalProps) {
 
         {entry.type === 'photo' && entry.hasMedia && (
           <img
-            src={mediaUrl(entry.id)}
+            src={mediaUrl(entry.id, 'full')}
             alt={entry.body ?? 'Capsule photo'}
             className="modal-photo"
           />
