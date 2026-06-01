@@ -3,6 +3,7 @@ import { fetchEntries } from './api/capsuleApi';
 import { PanZoomSky } from './components/PanZoomSky';
 import { BubbleModal } from './components/BubbleModal';
 import { ExplorePanel } from './components/ExplorePanel';
+import { InfoPanel } from './components/InfoPanel';
 import { UploadPanel } from './components/UploadPanel';
 import type { CapsuleEntry } from './types';
 import {
@@ -17,6 +18,7 @@ export default function App() {
   const [selected, setSelected] = useState<CapsuleEntry | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [exploreOpen, setExploreOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>({
     query: '',
     type: 'all',
@@ -80,14 +82,6 @@ export default function App() {
       </div>
 
       <div className="ui-layer">
-        <header className="header">
-          <p className="eyebrow">Booty Bear</p>
-          <h1>Time Capsule</h1>
-          <p className="tagline">
-            Newest at the center · older memories toward the edges
-          </p>
-        </header>
-
         {loading && (
           <p className="status-banner">Opening the capsule…</p>
         )}
@@ -99,7 +93,7 @@ export default function App() {
         )}
         {!loading && !error && entries.length > 0 && filtered.length === 0 && (
           <p className="status-banner empty">
-            No bubbles match — open <strong>search</strong> to adjust filters.
+            No bubbles match — tap <strong>⌕</strong> to adjust filters.
           </p>
         )}
       </div>
@@ -115,6 +109,14 @@ export default function App() {
         </button>
         <button
           type="button"
+          className="fab fab-info"
+          onClick={() => setInfoOpen(true)}
+          aria-label="About Time Capsule and how it works"
+        >
+          i
+        </button>
+        <button
+          type="button"
           className="fab fab-add"
           onClick={() => setUploadOpen(true)}
           aria-label="Add to capsule"
@@ -122,6 +124,17 @@ export default function App() {
           +
         </button>
       </div>
+
+      {infoOpen && (
+        <>
+          <div
+            className="upload-scrim"
+            onClick={() => setInfoOpen(false)}
+            role="presentation"
+          />
+          <InfoPanel onClose={() => setInfoOpen(false)} />
+        </>
+      )}
 
       {exploreOpen && (
         <>
