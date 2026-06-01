@@ -66,7 +66,11 @@ export async function compressImageForUpload(file: File): Promise<File> {
   let dim = MAX_DIMENSION;
 
   for (let attempt = 0; attempt < 12; attempt++) {
-    ({ width, height } = scaleDimensions(img.naturalWidth, img.naturalHeight, dim));
+    const { width, height } = scaleDimensions(
+      img.naturalWidth,
+      img.naturalHeight,
+      dim,
+    );
     canvas.width = width;
     canvas.height = height;
     ctx.fillStyle = '#2c2419';
