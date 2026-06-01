@@ -76,6 +76,8 @@ export default function App() {
   return (
     <div className="app">
       <div className="sky" aria-hidden>
+        <div className="sky-collage" />
+        <div className="sky-collage-fade" />
         {showBubbles && (
           <PanZoomSky entries={filtered} onSelect={setSelected} />
         )}

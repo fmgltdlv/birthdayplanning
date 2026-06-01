@@ -1,7 +1,12 @@
 import { useMemo } from 'react';
 import type { CapsuleEntry } from '../types';
 import { mediaUrl } from '../api/capsuleApi';
-import { notePreview, overviewDotSize, type BubbleStyle } from '../utils/bubbleLayout';
+import {
+  bubbleHueClass,
+  notePreview,
+  overviewDotSize,
+  type BubbleStyle,
+} from '../utils/bubbleLayout';
 import { visibleBubbleIndices } from '../utils/viewportBubbles';
 
 interface BubbleFieldProps {
@@ -56,7 +61,7 @@ export function BubbleField({
           <button
             key={entry.id}
             type="button"
-            className={`bubble ${entry.type === 'photo' ? 'bubble-photo' : 'bubble-note'}${overview ? ' bubble-overview' : ''}`}
+            className={`bubble ${bubbleHueClass(entry.id)} ${entry.type === 'photo' ? 'bubble-photo' : 'bubble-note'}${overview ? ' bubble-overview' : ''}`}
             style={{
               left: style.left + centerOffset,
               top: style.top + centerOffset,

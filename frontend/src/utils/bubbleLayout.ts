@@ -31,6 +31,17 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
+const BUBBLE_HUE_CLASSES = [
+  'bubble-hue-orange',
+  'bubble-hue-purple',
+  'bubble-hue-blue',
+  'bubble-hue-green',
+] as const;
+
+export function bubbleHueClass(id: string): (typeof BUBBLE_HUE_CLASSES)[number] {
+  return BUBBLE_HUE_CLASSES[hashString(id) % 4]!;
+}
+
 function bubbleSize(entry: CapsuleEntry, maxPx: number): number {
   const h = hashString(entry.id);
   const base = entry.type === 'photo' ? 58 : 50;

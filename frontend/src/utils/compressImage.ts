@@ -145,7 +145,7 @@ async function rasterizeToJpeg(
       const { width, height } = scaleDimensions(decoded.width, decoded.height, dim);
       canvas.width = width;
       canvas.height = height;
-      ctx.fillStyle = '#2c2419';
+      ctx.fillStyle = '#06080f';
       ctx.fillRect(0, 0, width, height);
       decoded.draw(ctx, 0, 0, width, height);
 
