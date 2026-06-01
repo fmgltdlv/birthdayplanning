@@ -213,7 +213,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
         ) : (
           <>
             <p className="upload-hint">
-              Up to {MAX_PHOTOS} photos · full ≤5 MB + thumbnail on your device
+              Up to {MAX_PHOTOS} photos
             </p>
             <label className="photo-pick-btn">
               <input
