@@ -8,7 +8,10 @@ export function authorLengthError(name: string): string | null {
   return null;
 }
 
-export function bodyLengthError(text: string, label: 'Note' | 'Caption'): string | null {
+export function bodyLengthError(
+  text: string,
+  label: 'Note' | 'Caption' | 'Comment',
+): string | null {
   if (text.length > MAX_BODY_LEN) {
     return `${label} must be ${MAX_BODY_LEN} characters or fewer`;
   }

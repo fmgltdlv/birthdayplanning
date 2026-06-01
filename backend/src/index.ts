@@ -1,3 +1,4 @@
+import { insertComment, listCommentsForEntry } from './comments';
 import {
   getEntry,
   insertNote,
@@ -128,6 +129,41 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     );
 
     return json({ entry }, 201);
+  }
+
+  const commentsMatch = path.match(/^\/api\/entries\/([^/]+)\/comments$/);
+  if (commentsMatch) {
+    const entryId = decodeURIComponent(commentsMatch[1]);
+    const entryRow = await getEntry(env.DB, entryId);
+    if (!entryRow) return error('Entry not found', 404);
+
+    if (request.method === 'GET') {
+      const comments = await listCommentsForEntry(env.DB, entryId);
+      return json({ comments });
+    }
+
+    if (request.method === 'POST') {
+      let body: { authorName?: string; text?: string };
+      try {
+        body = (await request.json()) as { authorName?: string; text?: string };
+      } catch {
+        return error('Invalid JSON', 400);
+      }
+
+      const text = (body.text ?? '').trim();
+      if (!text) return error('Comment text is required', 400);
+      const textLenErr = bodyLengthError(text, 'Comment');
+      if (textLenErr) return error(textLenErr, 400);
+
+      const authorName = (body.authorName ?? '').trim();
+      if (!authorName) return error('Author name is required for comments', 400);
+      const authorLenErr = authorLengthError(authorName);
+      if (authorLenErr) return error(authorLenErr, 400);
+
+      const id = crypto.randomUUID();
+      const comment = await insertComment(env.DB, id, entryId, authorName, text);
+      return json({ comment }, 201);
+    }
   }
 
   const mediaMatch = path.match(/^\/api\/media\/([^/]+)$/);

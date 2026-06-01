@@ -8,3 +8,11 @@ export interface CapsuleEntry {
   hasMedia: boolean;
   hasThumb: boolean;
 }
+
+export interface CapsuleComment {
+  id: string;
+  entryId: string;
+  authorName: string;
+  body: string;
+  createdAt: number;
+}

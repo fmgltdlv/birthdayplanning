@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import type { CapsuleEntry } from '../types';
 import { mediaUrl } from '../api/capsuleApi';
+import type { CapsuleEntry } from '../types';
+import { EntryComments } from './EntryComments';
 
 interface BubbleModalProps {
   entry: CapsuleEntry | null;
@@ -31,6 +32,7 @@ export function BubbleModal({ entry, onClose }: BubbleModalProps) {
   if (!entry) return null;
 
   const author = entry.authorName ?? 'Anonymous';
+  const photoCaption = entry.type === 'photo' ? entry.body : null;
 
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -57,12 +59,18 @@ export function BubbleModal({ entry, onClose }: BubbleModalProps) {
         {entry.type === 'photo' && entry.hasMedia && (
           <img
             src={mediaUrl(entry.id, 'full')}
-            alt={entry.body ?? 'Capsule photo'}
+            alt={photoCaption ?? 'Capsule photo'}
             className="modal-photo"
           />
         )}
 
-        {entry.body && <p className="modal-body">{entry.body}</p>}
+        {entry.type === 'photo' && photoCaption && (
+          <p className="modal-caption">{photoCaption}</p>
+        )}
+
+        {entry.type === 'note' && entry.body && <p className="modal-body">{entry.body}</p>}
+
+        <EntryComments entryId={entry.id} />
       </article>
     </div>
   );

@@ -27,8 +27,12 @@ export function InfoPanel({ onClose }: InfoPanelProps) {
             leave a note or photo with your name.
           </li>
           <li>
-            <strong>Explore</strong> — tap a bubble to open it. Drag the sky to
-            wander; scroll or pinch to zoom.
+            <strong>Explore</strong> — tap a bubble to open it, read comments,
+            and leave your own. Drag the sky to wander; scroll or pinch to zoom.
+          </li>
+          <li>
+            <strong>Photos</strong> — add an optional caption per image when you
+            upload (captions can&apos;t be edited later).
           </li>
           <li>
             <strong>Newest in the middle</strong> — the latest memories sit at

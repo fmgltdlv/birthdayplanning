@@ -164,7 +164,11 @@ export default function App() {
         onClose={() => setUploadOpen(false)}
       />
 
-      <BubbleModal entry={selected} onClose={() => setSelected(null)} />
+      <BubbleModal
+        key={selected?.id ?? 'closed'}
+        entry={selected}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }

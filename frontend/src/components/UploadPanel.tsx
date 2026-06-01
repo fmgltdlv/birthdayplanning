@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { postNote, postPhoto } from '../api/capsuleApi';
+import { loadAuthorName, saveAuthorName } from '../authorStorage';
 import type { CapsuleEntry } from '../types';
 import { formatBytes, isLikelyImage, preparePhotoUpload } from '../utils/compressImage';
 
 const MAX_PHOTOS = 10;
-const AUTHOR_KEY = 'capsule-author-name';
-
-function loadAuthor(): string {
-  return localStorage.getItem(AUTHOR_KEY) ?? '';
-}
 
 interface UploadPanelProps {
   onPosted: (entry: CapsuleEntry) => void;
@@ -23,13 +19,13 @@ interface PendingPhoto {
   preview: string;
   fullSize: number;
   thumbSize: number;
+  caption: string;
 }
 
 export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
-  const [authorName, setAuthorName] = useState(loadAuthor);
+  const [authorName, setAuthorName] = useState(loadAuthorName);
   const [mode, setMode] = useState<'note' | 'photo'>('note');
   const [text, setText] = useState('');
-  const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +35,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem(AUTHOR_KEY, authorName);
+    saveAuthorName(authorName);
   }, [authorName]);
 
   const hasName = authorName.trim().length > 0;
@@ -85,6 +81,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
           preview: URL.createObjectURL(thumb),
           fullSize: full.size,
           thumbSize: thumb.size,
+          caption: '',
         });
       } catch (e) {
         errors.push(e instanceof Error ? e.message : 'Could not process a photo');
@@ -102,6 +99,12 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
     setProgress('');
     if (libraryRef.current) libraryRef.current.value = '';
     if (cameraRef.current) cameraRef.current.value = '';
+  };
+
+  const updatePendingCaption = (id: string, caption: string) => {
+    setPending((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, caption } : p)),
+    );
   };
 
   const removePending = (id: string) => {
@@ -151,11 +154,10 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
           item.full,
           item.thumb,
           authorName,
-          i === 0 ? caption : '',
+          item.caption,
         );
         onPosted(entry);
       }
-      setCaption('');
       clearPending();
       onClose();
     } catch (e) {
@@ -290,31 +292,33 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
             {pending.length > 0 && (
               <ul className="pending-grid">
                 {pending.map((p) => (
-                  <li key={p.id} className="pending-thumb">
-                    <img src={p.preview} alt="" />
-                    <span className="pending-size">
-                      {formatBytes(p.fullSize)} · thumb {formatBytes(p.thumbSize)}
-                    </span>
-                    <button
-                      type="button"
-                      className="pending-remove"
-                      onClick={() => removePending(p.id)}
-                      aria-label="Remove"
-                    >
-                      ×
-                    </button>
+                  <li key={p.id} className="pending-item">
+                    <div className="pending-thumb">
+                      <img src={p.preview} alt="" />
+                      <span className="pending-size">
+                        {formatBytes(p.fullSize)} · thumb {formatBytes(p.thumbSize)}
+                      </span>
+                      <button
+                        type="button"
+                        className="pending-remove"
+                        onClick={() => removePending(p.id)}
+                        aria-label="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      className="pending-caption"
+                      value={p.caption}
+                      onChange={(e) => updatePendingCaption(p.id, e.target.value)}
+                      placeholder="Caption (optional)"
+                      aria-label="Photo caption"
+                    />
                   </li>
                 ))}
               </ul>
             )}
-
-            <input
-              type="text"
-              className="caption-input"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Caption for batch (optional)"
-            />
 
             <button
               type="button"
