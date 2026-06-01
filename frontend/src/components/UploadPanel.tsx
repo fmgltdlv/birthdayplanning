@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { postNote, postPhoto } from '../api/capsuleApi';
 import type { CapsuleEntry } from '../types';
-import { formatBytes, preparePhotoUpload } from '../utils/compressImage';
+import { formatBytes, isLikelyImage, preparePhotoUpload } from '../utils/compressImage';
 
 const MAX_PHOTOS = 10;
 const AUTHOR_KEY = 'capsule-author-name';
@@ -34,11 +34,15 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingPhoto[]>([]);
-  const photoRef = useRef<HTMLInputElement>(null);
+  const [photoSourceOpen, setPhotoSourceOpen] = useState(false);
+  const libraryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem(AUTHOR_KEY, authorName);
   }, [authorName]);
+
+  const hasName = authorName.trim().length > 0;
 
   const clearPending = () => {
     pending.forEach((p) => URL.revokeObjectURL(p.preview));
@@ -48,6 +52,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
   const addFiles = async (files: FileList | null) => {
     if (!files?.length) return;
     setError(null);
+    setPhotoSourceOpen(false);
 
     const slots = MAX_PHOTOS - pending.length;
     if (slots <= 0) {
@@ -55,7 +60,11 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
       return;
     }
 
-    const picked = Array.from(files).slice(0, slots);
+    const picked = Array.from(files).filter(isLikelyImage).slice(0, slots);
+    if (picked.length === 0) {
+      setError('No valid photos selected');
+      return;
+    }
     if (files.length > slots) {
       setError(`Only ${MAX_PHOTOS} photos allowed — added first ${slots}`);
     }
@@ -63,9 +72,11 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
     setBusy(true);
     setProgress('Processing…');
 
-    try {
-      const next: PendingPhoto[] = [];
-      for (const raw of picked) {
+    const errors: string[] = [];
+    const next: PendingPhoto[] = [];
+
+    for (const raw of picked) {
+      try {
         const { full, thumb } = await preparePhotoUpload(raw);
         next.push({
           id: crypto.randomUUID(),
@@ -75,15 +86,22 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
           fullSize: full.size,
           thumbSize: thumb.size,
         });
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : 'Could not process a photo');
       }
-      setPending((prev) => [...prev, ...next].slice(0, MAX_PHOTOS));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not process photos');
-    } finally {
-      setBusy(false);
-      setProgress('');
-      if (photoRef.current) photoRef.current.value = '';
     }
+
+    if (next.length) {
+      setPending((prev) => [...prev, ...next].slice(0, MAX_PHOTOS));
+    }
+    if (errors.length) {
+      setError(errors[0]);
+    }
+
+    setBusy(false);
+    setProgress('');
+    if (libraryRef.current) libraryRef.current.value = '';
+    if (cameraRef.current) cameraRef.current.value = '';
   };
 
   const removePending = (id: string) => {
@@ -93,8 +111,6 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
       return prev.filter((p) => p.id !== id);
     });
   };
-
-  const hasName = authorName.trim().length > 0;
 
   const submitNote = async () => {
     if (!hasName) {
@@ -215,17 +231,61 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
             <p className="upload-hint">
               Up to {MAX_PHOTOS} photos
             </p>
-            <label className="photo-pick-btn">
-              <input
-                ref={photoRef}
-                type="file"
-                accept="image/*"
-                multiple
-                hidden
-                onChange={(e) => void addFiles(e.target.files)}
-              />
-              Choose photos ({pending.length}/{MAX_PHOTOS})
-            </label>
+
+            <input
+              ref={libraryRef}
+              type="file"
+              className="photo-input-hidden"
+              accept="image/*"
+              multiple
+              onChange={(e) => void addFiles(e.target.files)}
+            />
+            <input
+              ref={cameraRef}
+              type="file"
+              className="photo-input-hidden"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => void addFiles(e.target.files)}
+            />
+
+            <button
+              type="button"
+              className="photo-pick-btn"
+              disabled={busy || pending.length >= MAX_PHOTOS}
+              onClick={() => setPhotoSourceOpen(true)}
+            >
+              Add photos ({pending.length}/{MAX_PHOTOS})
+            </button>
+
+            {photoSourceOpen && (
+              <div className="photo-source-sheet" role="dialog" aria-label="Photo source">
+                <p className="photo-source-title">Add photos from</p>
+                <button
+                  type="button"
+                  className="photo-source-option"
+                  onClick={() => libraryRef.current?.click()}
+                >
+                  Photo library
+                  <span className="photo-source-sub">Choose one or more</span>
+                </button>
+                <button
+                  type="button"
+                  className="photo-source-option"
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  Camera
+                  <span className="photo-source-sub">Take a photo now</span>
+                </button>
+                <button
+                  type="button"
+                  className="photo-source-cancel"
+                  onClick={() => setPhotoSourceOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
 
             {pending.length > 0 && (
               <ul className="pending-grid">
