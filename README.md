@@ -1,6 +1,6 @@
 # Booty Bear Time Capsule
 
-Open time capsule: notes and photos. No login. yay
+Open time capsule: notes and photos. No login.
 
 ```
 frontend/     React + Vite
