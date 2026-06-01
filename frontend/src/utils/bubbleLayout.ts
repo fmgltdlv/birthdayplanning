@@ -17,20 +17,22 @@ function hashString(s: string): number {
   return Math.abs(h);
 }
 
-/** Stable pseudo-random bubble positions (percent) per entry. */
+/** Stable pseudo-random bubble positions (percent) across the full viewport. */
 export function bubbleStyleFor(entry: CapsuleEntry, index: number): BubbleStyle {
   const h = hashString(entry.id);
   const h2 = hashString(entry.id + String(index));
 
   const size =
-    entry.type === 'photo' ? 88 + (h % 48) : 72 + (h % 40);
+    entry.type === 'photo'
+      ? 72 + (h % 56)
+      : 56 + (h % 44);
 
   return {
-    left: 8 + (h % 72),
-    top: 6 + (h2 % 78),
+    left: 4 + (h % 88),
+    top: 8 + (h2 % 82),
     size,
-    delay: (h % 20) * 0.15,
-    duration: 14 + (h2 % 10),
+    delay: (h % 24) * 0.12,
+    duration: 12 + (h2 % 14),
   };
 }
 

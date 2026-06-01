@@ -1,12 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { postNote, postPhoto } from '../api/capsuleApi';
 import type { CapsuleEntry } from '../types';
 import { compressImageForUpload, formatBytes } from '../utils/compressImage';
 
 const MAX_PHOTOS = 10;
+const AUTHOR_KEY = 'capsule-author-name';
+
+function loadAuthor(): string {
+  return localStorage.getItem(AUTHOR_KEY) ?? '';
+}
 
 interface UploadPanelProps {
-  authorName: string;
   onPosted: (entry: CapsuleEntry) => void;
   collapsed?: boolean;
   onToggle?: () => void;
@@ -21,11 +25,11 @@ interface PendingPhoto {
 }
 
 export function UploadPanel({
-  authorName,
   onPosted,
   collapsed = false,
   onToggle,
 }: UploadPanelProps) {
+  const [authorName, setAuthorName] = useState(loadAuthor);
   const [mode, setMode] = useState<'note' | 'photo'>('note');
   const [text, setText] = useState('');
   const [caption, setCaption] = useState('');
@@ -35,6 +39,10 @@ export function UploadPanel({
   const [pending, setPending] = useState<PendingPhoto[]>([]);
   const galleryRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem(AUTHOR_KEY, authorName);
+  }, [authorName]);
 
   const clearPending = () => {
     pending.forEach((p) => URL.revokeObjectURL(p.preview));
@@ -112,7 +120,6 @@ export function UploadPanel({
     setError(null);
     setBusy(true);
 
-    const uploaded: CapsuleEntry[] = [];
     try {
       for (let i = 0; i < pending.length; i++) {
         setProgress(`Uploading ${i + 1} of ${pending.length}…`);
@@ -122,14 +129,12 @@ export function UploadPanel({
           authorName,
           i === 0 ? caption : '',
         );
-        uploaded.push(entry);
         onPosted(entry);
       }
       setCaption('');
       clearPending();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed');
-      uploaded.forEach(onPosted);
     } finally {
       setBusy(false);
       setProgress('');
@@ -154,6 +159,17 @@ export function UploadPanel({
           </button>
         )}
       </div>
+
+      <label className="author-field">
+        <span>Your name (optional)</span>
+        <input
+          type="text"
+          value={authorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          placeholder="Who is leaving this?"
+          autoComplete="name"
+        />
+      </label>
 
       <div className="mode-tabs">
         <button

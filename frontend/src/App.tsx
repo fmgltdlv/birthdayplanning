@@ -11,19 +11,13 @@ import {
   type FilterState,
 } from './utils/filterEntries';
 
-const AUTHOR_KEY = 'capsule-author-name';
-
-function loadAuthor(): string {
-  return localStorage.getItem(AUTHOR_KEY) ?? '';
-}
-
 export default function App() {
   const [entries, setEntries] = useState<CapsuleEntry[]>([]);
-  const [authorName, setAuthorName] = useState(loadAuthor);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<CapsuleEntry | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>({
     query: '',
     type: 'all',
@@ -64,10 +58,6 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(AUTHOR_KEY, authorName);
-  }, [authorName]);
-
   const filtered = useMemo(
     () => filterAndSortEntries(entries, filter),
     [entries, filter],
@@ -80,54 +70,62 @@ export default function App() {
     });
   };
 
+  const showBubbles = !loading && !error && filtered.length > 0;
+
   return (
     <div className="app">
-      <header className="header">
-        <p className="eyebrow">Booty Bear</p>
-        <h1>Time Capsule</h1>
-        <p className="tagline">Floating memories · tap a bubble to open</p>
-      </header>
+      <div className="sky" aria-hidden>
+        {showBubbles && (
+          <BubbleField entries={filtered} onSelect={setSelected} />
+        )}
+      </div>
 
-      <section className="author-bar">
-        <label>
-          <span>Your name (optional)</span>
-          <input
-            type="text"
-            value={authorName}
-            onChange={(e) => setAuthorName(e.target.value)}
-            placeholder="Who is leaving this?"
-          />
-        </label>
-        <button type="button" className="btn-refresh" onClick={() => void refresh()}>
-          Refresh
-        </button>
-      </section>
+      <div className="ui-layer">
+        <header className="header">
+          <p className="eyebrow">Booty Bear</p>
+          <h1>Time Capsule</h1>
+          <p className="tagline">Memories floating all around · tap a bubble</p>
+        </header>
 
-      <FilterBar
-        filter={filter}
-        onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
-        resultCount={filtered.length}
-        totalCount={entries.length}
-      />
+        <FilterBar
+          filter={filter}
+          onChange={(patch) => setFilter((f) => ({ ...f, ...patch }))}
+          resultCount={filtered.length}
+          totalCount={entries.length}
+          onRefresh={() => void refresh()}
+        />
 
-      <main className="capsule-main">
-        {loading && <p className="status">Opening the capsule…</p>}
-        {error && <p className="status error">{error}</p>}
+        {loading && (
+          <p className="status-banner">Opening the capsule…</p>
+        )}
+        {error && <p className="status-banner error">{error}</p>}
         {!loading && !error && entries.length === 0 && (
-          <p className="status empty">
-            The capsule is empty — tap + to add the first note or photo.
+          <p className="status-banner empty">
+            The sky is empty — tap <strong>+</strong> to leave the first memory.
           </p>
         )}
-        {!loading && !error && entries.length > 0 && (
-          <>
-            <BubbleField entries={filtered} onSelect={setSelected} />
-            <EntryList entries={filtered} onSelect={setSelected} />
-          </>
+        {!loading && !error && entries.length > 0 && filtered.length === 0 && (
+          <p className="status-banner empty">
+            No bubbles match — try another search or filter.
+          </p>
         )}
-      </main>
+
+        {filtered.length > 0 && (
+          <button
+            type="button"
+            className="btn-browse-toggle"
+            onClick={() => setListOpen((o) => !o)}
+          >
+            {listOpen ? 'Hide list' : 'Browse list'}
+          </button>
+        )}
+
+        {listOpen && filtered.length > 0 && (
+          <EntryList entries={filtered} onSelect={setSelected} />
+        )}
+      </div>
 
       <UploadPanel
-        authorName={authorName}
         onPosted={onPosted}
         collapsed={!uploadOpen}
         onToggle={() => setUploadOpen((o) => !o)}
@@ -142,10 +140,6 @@ export default function App() {
       )}
 
       <BubbleModal entry={selected} onClose={() => setSelected(null)} />
-
-      <footer className="footer">
-        <p>Open capsule · Photos compressed on your device before upload</p>
-      </footer>
     </div>
   );
 }

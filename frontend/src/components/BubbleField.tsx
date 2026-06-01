@@ -8,14 +8,6 @@ interface BubbleFieldProps {
 }
 
 export function BubbleField({ entries, onSelect }: BubbleFieldProps) {
-  if (entries.length === 0) {
-    return (
-      <p className="bubble-empty">
-        No memories match your filters. Try clearing search or changing the type filter.
-      </p>
-    );
-  }
-
   return (
     <div className="bubble-field" aria-label="Memory bubbles">
       {entries.map((entry, index) => {
