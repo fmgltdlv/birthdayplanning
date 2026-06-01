@@ -4,6 +4,8 @@ import {
   insertPhoto,
   listEntries,
 } from './entries';
+import { authorLengthError, bodyLengthError } from './limits';
+import { corsPreflightResponse, withApiSecurity, withAssetSecurity } from './security';
 import {
   putToR2,
   r2KeyFor,
@@ -16,6 +18,8 @@ export interface Env {
   DB: D1Database;
   MEDIA: R2Bucket;
   ASSETS: Fetcher;
+  /** Comma-separated extra origins for CORS (optional). */
+  ALLOWED_ORIGINS?: string;
 }
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=utf-8' };
@@ -55,9 +59,14 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
     const text = (body.text ?? '').trim();
     if (!text) return error('Note text is required', 400);
+    const textLenErr = bodyLengthError(text, 'Note');
+    if (textLenErr) return error(textLenErr, 400);
 
     const authorName = (body.authorName ?? '').trim();
     if (!authorName) return error('Your name is required', 400);
+    const authorLenErr = authorLengthError(authorName);
+    if (authorLenErr) return error(authorLenErr, 400);
+
     const id = crypto.randomUUID();
     const entry = await insertNote(env.DB, id, authorName, text);
     return json({ entry }, 201);
@@ -88,7 +97,15 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
 
     const authorName = String(form.get('authorName') ?? '').trim();
     if (!authorName) return error('Your name is required', 400);
-    const caption = String(form.get('caption') ?? '').trim() || null;
+    const authorLenErr = authorLengthError(authorName);
+    if (authorLenErr) return error(authorLenErr, 400);
+
+    const captionRaw = String(form.get('caption') ?? '').trim();
+    const caption = captionRaw || null;
+    if (caption) {
+      const captionLenErr = bodyLengthError(caption, 'Caption');
+      if (captionLenErr) return error(captionLenErr, 400);
+    }
 
     const id = crypto.randomUUID();
     const key = r2KeyFor(id, file.type);
@@ -145,14 +162,19 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api')) {
+      const preflight = corsPreflightResponse(request, env);
+      if (preflight) return preflight;
+
       try {
-        return await handleApi(request, env);
+        const response = await handleApi(request, env);
+        return withApiSecurity(response, request, env);
       } catch (e) {
         console.error(e);
-        return error('Internal server error', 500);
+        return withApiSecurity(error('Internal server error', 500), request, env);
       }
     }
 
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    return withAssetSecurity(assetResponse, request);
   },
 };
