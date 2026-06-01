@@ -15,7 +15,8 @@ COLLAGE_WIDTH = 2800
 COLLAGE_HEIGHT = 1800
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 COLLAGE_SEED = 20260531
-BG_RGB = (12, 14, 26)
+BG_RGB = (198, 220, 245)  # light sky blue
+BG_VIGNETTE_RGB = (170, 200, 235)
 POLAROID = (248, 244, 236)
 
 
@@ -140,7 +141,7 @@ def _vignette(img: Image.Image) -> Image.Image:
     draw = ImageDraw.Draw(vignette)
     draw.ellipse((-w * 0.15, -h * 0.2, w * 1.15, h * 1.25), fill=255)
     vignette = vignette.filter(ImageFilter.GaussianBlur(80))
-    dark = Image.new("RGB", (w, h), BG_RGB)
+    dark = Image.new("RGB", (w, h), BG_VIGNETTE_RGB)
     return Image.composite(img, dark, vignette)
 
 
@@ -205,9 +206,9 @@ def build_collage(images: list[Image.Image]) -> Image.Image:
 
         border = rng.randint(10, 16)
         bottom_extra = rng.randint(22, 38)
-        angle = rng.uniform(-22, 22)
-        if abs(angle) < 4:
-            angle += rng.choice([-1, 1]) * rng.uniform(6, 12)
+        angle = rng.uniform(-10, 10)
+        if abs(angle) < 2:
+            angle = rng.choice([-1, 1]) * rng.uniform(4, 10)
 
         frame = _make_polaroid(img, photo_w, photo_h, border, bottom_extra)
         tile = _tile_with_shadow(frame, angle)
