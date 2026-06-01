@@ -61,7 +61,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
     }
 
     setBusy(true);
-    setProgress('Preparing photos on your device…');
+    setProgress('Processing…');
 
     try {
       const next: PendingPhoto[] = [];
