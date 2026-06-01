@@ -12,10 +12,10 @@ backend/      Cloudflare Worker + D1 + R2
 | Setting | Value |
 |---------|--------|
 | **Root directory** | *(empty — repo root)* |
-| **Build command** | `npm install && npm run deploy` |
-| **Deploy command** | **Leave empty** |
+| **Build command** | `npm install && npm run build` |
+| **Deploy command** | `npm run deploy:cloudflare` |
 
-The build command already runs `wrangler deploy`. A second deploy step like `npx wrangler deploy` will **fail** (monorepo / wrong directory).
+Do **not** use plain `npx wrangler deploy` from the repo root — it fails in this monorepo.
 
 Worker name in `backend/wrangler.toml` must match your Cloudflare project: `birthdayplanning`.
 
