@@ -56,7 +56,8 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     const text = (body.text ?? '').trim();
     if (!text) return error('Note text is required', 400);
 
-    const authorName = (body.authorName ?? '').trim() || null;
+    const authorName = (body.authorName ?? '').trim();
+    if (!authorName) return error('Your name is required', 400);
     const id = crypto.randomUUID();
     const entry = await insertNote(env.DB, id, authorName, text);
     return json({ entry }, 201);
@@ -85,7 +86,8 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
       if (thumbErr) return error(thumbErr, 400);
     }
 
-    const authorName = String(form.get('authorName') ?? '').trim() || null;
+    const authorName = String(form.get('authorName') ?? '').trim();
+    if (!authorName) return error('Your name is required', 400);
     const caption = String(form.get('caption') ?? '').trim() || null;
 
     const id = crypto.randomUUID();

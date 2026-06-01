@@ -94,7 +94,13 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
     });
   };
 
+  const hasName = authorName.trim().length > 0;
+
   const submitNote = async () => {
+    if (!hasName) {
+      setError('Please enter your name');
+      return;
+    }
     setError(null);
     setBusy(true);
     try {
@@ -110,6 +116,10 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
   };
 
   const submitPhotos = async () => {
+    if (!hasName) {
+      setError('Please enter your name');
+      return;
+    }
     if (pending.length === 0) {
       setError('Add at least one photo');
       return;
@@ -154,13 +164,14 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
         </div>
 
         <label className="author-field">
-          <span>Your name (optional)</span>
+          <span>Your name</span>
           <input
             type="text"
             value={authorName}
             onChange={(e) => setAuthorName(e.target.value)}
             placeholder="Who is leaving this?"
             autoComplete="name"
+            required
           />
         </label>
 
@@ -193,7 +204,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
             <button
               type="button"
               className="btn-submit"
-              disabled={busy || !text.trim()}
+              disabled={busy || !text.trim() || !hasName}
               onClick={() => void submitNote()}
             >
               {busy ? 'Saving…' : 'Seal the note'}
@@ -248,7 +259,7 @@ export function UploadPanel({ onPosted, open, onClose }: UploadPanelProps) {
             <button
               type="button"
               className="btn-submit"
-              disabled={busy || pending.length === 0}
+              disabled={busy || pending.length === 0 || !hasName}
               onClick={() => void submitPhotos()}
             >
               {busy ? progress || 'Uploading…' : `Add ${pending.length || ''} photo${pending.length === 1 ? '' : 's'}`}
